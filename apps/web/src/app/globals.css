@@ -1,0 +1,63 @@
+/* Fallbacks when outside [data-theme] (e.g. portaled overlays). */
+:root {
+  --t-scroll-size: 8px;
+  --t-scroll-track: transparent;
+  --t-scroll-thumb: #b9c1d1;
+  --t-scroll-thumb-hover: #8a93a8;
+}
+
+html {
+  scrollbar-gutter: stable;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+a {
+  color: #1b34ff;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #0f24cc;
+  text-decoration: underline;
+}
+
+::selection {
+  background: #c9d0ff;
+}
+
+/* Thin, themed scrollbars (Firefox + Chromium/WebKit). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--t-scroll-thumb) var(--t-scroll-track);
+}
+
+*::-webkit-scrollbar {
+  width: var(--t-scroll-size);
+  height: var(--t-scroll-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--t-scroll-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--t-scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--t-scroll-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}

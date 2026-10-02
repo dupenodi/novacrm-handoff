@@ -1,0 +1,60 @@
+{
+  "ownerEmail": "sarath2010125@ssn.edu.in",
+  "projectManager": {
+    "name": "Rachel",
+    "email": "sampleuser1@rocketlane.com"
+  },
+  "csm": {
+    "name": "Paul",
+    "email": "sampleuser2@rocketlane.com"
+  },
+  "companies": {
+    "acme": 5000000164925,
+    "modert": 5000000164926
+  },
+  "playbooks": {
+    "enterprise": {
+      "label": "Enterprise Onboarding · 30 days",
+      "durationDays": 30,
+      "csmModel": "Dedicated CSM",
+      "templateId": 5000000098075,
+      "projectId": "5000000226040",
+      "phases": [
+        "Kickoff & Readiness",
+        "Solutioning & Planning",
+        "Implementation",
+        "Go-live & Value Delivery"
+      ],
+      "taskCount": 23
+    },
+    "growth": {
+      "label": "Growth Onboarding · 14 days",
+      "durationDays": 14,
+      "csmModel": "Pooled CSM",
+      "templateId": 5000000098069,
+      "projectId": "5000000226041",
+      "phases": [
+        "Kickoff & Readiness",
+        "Solutioning & Planning",
+        "Implementation",
+        "Go-live & Value Delivery"
+      ],
+      "taskCount": 23
+    }
+  },
+  "automations": [
+    {
+      "name": "Overdue 1d → Manager",
+      "scope": "global",
+      "when": "task overdue by 1 day",
+      "notify": "Project Manager"
+    },
+    {
+      "name": "Overdue 4d → Owner",
+      "scope": "global",
+      "when": "task overdue by 4 days",
+      "notify": "Project Owner"
+    }
+  ],
+  "status": "ready"
+}
