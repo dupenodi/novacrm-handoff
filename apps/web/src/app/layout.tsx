@@ -13,7 +13,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={themeFontVariables}>
       <body>
-        <ThemeProvider theme="signal" className="app-root">
+        <ThemeProvider theme="geist" className="app-root">
           <AppShell>{children}</AppShell>
         </ThemeProvider>
       </body>

@@ -28,23 +28,6 @@ export type ChipProps = {
   onRemove?: () => void;
 } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">;
 
-const toneClass: Record<ChipTone, string> = {
-  accent: "t-chip--accent",
-  guess: "t-chip--guess",
-  stale: "t-chip--stale",
-  critical: "t-chip--critical",
-  muted: "t-chip--muted",
-  scope: "t-chip--scope",
-  ok: "t-chip--ok",
-  removable: "t-chip--removable",
-  fresh: "t-chip--fresh",
-  due: "t-chip--due",
-  risky: "t-chip--risky",
-  inbound: "t-chip--inbound",
-  info: "t-chip--info",
-  neutral: "t-chip--neutral",
-};
-
 export function Chip({
   children,
   tone = "accent",
@@ -55,38 +38,16 @@ export function Chip({
   onClick,
   ...rest
 }: ChipProps) {
-  const sizeClass = size === "sm" ? "t-chip--sm" : undefined;
+  const removable = tone === "removable" || Boolean(onRemove);
+  const classes = cx("t-chip", `t-chip--${removable ? "removable" : tone}`, size === "sm" && "t-chip--sm", className);
 
-  if (tone === "removable" || onRemove) {
-    return (
-      <button
-        type={type}
-        className={cx("t-chip", "t-chip--removable", sizeClass, className)}
-        onClick={onRemove ?? onClick}
-        {...rest}
-      >
-        {children}
-        <span aria-hidden>×</span>
-      </button>
-    );
-  }
-
-  if (onClick) {
-    return (
-      <button
-        type={type}
-        className={cx("t-chip", toneClass[tone], sizeClass, className)}
-        onClick={onClick}
-        {...rest}
-      >
-        {children}
-      </button>
-    );
-  }
+  // Interactive chips are buttons; plain ones are spans.
+  if (!removable && !onClick) return <span className={classes}>{children}</span>;
 
   return (
-    <span className={cx("t-chip", toneClass[tone], sizeClass, className)}>
+    <button type={type} className={classes} onClick={onRemove ?? onClick} {...rest}>
       {children}
-    </span>
+      {removable ? <span aria-hidden>×</span> : null}
+    </button>
   );
 }

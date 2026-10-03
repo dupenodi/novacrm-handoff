@@ -10,6 +10,95 @@
   flex-direction: column;
 }
 
+[data-theme="geist"] .app-header {
+  height: 48px;
+  padding: 0 20px;
+  background: #fff;
+  border-bottom: 1px solid #ebebeb;
+}
+
+[data-theme="geist"] .app-header__brand {
+  width: auto;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+[data-theme="geist"] .app-header__mark {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: #171717;
+  border: 0;
+}
+
+[data-theme="geist"] .app-header__name {
+  font-size: 13px;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="geist"] .app-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 20px;
+}
+
+[data-theme="geist"] .app-header__nav a {
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #737373;
+  text-decoration: none;
+}
+
+[data-theme="geist"] .app-header__nav a:hover {
+  color: #171717;
+  background: #f5f5f5;
+  text-decoration: none;
+}
+
+[data-theme="geist"] .app-header__nav a.is-active {
+  color: #171717;
+  font-weight: 530;
+}
+
+[data-theme="geist"] .app-sidebar {
+  display: none;
+}
+
+[data-theme="geist"] .app-main {
+  padding: 32px 24px 80px;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+[data-theme="geist"] .page-header {
+  padding-bottom: 20px;
+  align-items: flex-end;
+}
+
+[data-theme="geist"] .page-header h1 {
+  font-size: 20px;
+  font-weight: 560;
+  letter-spacing: -0.03em;
+}
+
+[data-theme="geist"] .page-header__sub {
+  font-size: 13px;
+  color: #737373;
+}
+
+[data-theme="geist"] .t-card {
+  box-shadow: none;
+}
+
+[data-theme="geist"] .settings-keybar {
+  box-shadow: none;
+  border: 1px solid #ebebeb;
+  border-radius: 8px;
+}
+
 .app-header {
   height: 54px;
   display: flex;

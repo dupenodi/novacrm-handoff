@@ -2,23 +2,30 @@ import "server-only";
 import { Composio } from "@composio/core";
 import type { ComposioConnection } from "@/lib/integrations";
 import { COMPOSIO_API_KEY, COMPOSIO_USER_ID } from "./config";
+import { isRecord } from "./util";
 
 const ACTIVE = "ACTIVE";
 
 export function isComposioConfigured(): boolean {
-  return COMPOSIO_API_KEY.trim().length > 0;
+  return COMPOSIO_API_KEY.length > 0;
 }
 
 function client(): Composio {
   if (!isComposioConfigured()) throw new Error("COMPOSIO_API_KEY is not set");
-  return new Composio({ apiKey: COMPOSIO_API_KEY.trim(), allowTracking: false });
+  return new Composio({ apiKey: COMPOSIO_API_KEY, allowTracking: false });
 }
+
+async function listAccounts() {
+  const { items } = await client().connectedAccounts.list({ userIds: [COMPOSIO_USER_ID], limit: 100 });
+  return items;
+}
+
+// —— Connections ——————————————————————————————————————————————————————————
 
 /** One row per toolkit: the active account if there is one, otherwise the most recent attempt. */
 export async function listConnections(): Promise<ComposioConnection[]> {
-  const { items } = await client().connectedAccounts.list({ userIds: [COMPOSIO_USER_ID], limit: 100 });
-  const newestFirst = [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const byToolkit = new Map<string, (typeof items)[number]>();
+  const newestFirst = (await listAccounts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const byToolkit = new Map<string, (typeof newestFirst)[number]>();
   for (const account of newestFirst) {
     const slug = account.toolkit.slug.toLowerCase();
     const current = byToolkit.get(slug);
@@ -32,6 +39,17 @@ export async function listConnections(): Promise<ComposioConnection[]> {
   }));
 }
 
+/** Active connected-account id for a toolkit (gmail, rocketlane, slack, salesforce). */
+export async function getActiveAccountId(toolkit: string): Promise<string> {
+  const connection = (await listConnections()).find(
+    (c) => c.toolkit === toolkit.toLowerCase() && c.status === ACTIVE,
+  );
+  if (!connection) {
+    throw new Error(`No ACTIVE Composio connection for “${toolkit}”. Connect it in Settings → Integrations.`);
+  }
+  return connection.accountId;
+}
+
 /** Composio-hosted link that handles OAuth (Gmail, Slack) or API-key entry (Rocketlane). */
 export async function startConnection(toolkit: string, callbackUrl: string): Promise<string> {
   const composio = client();
@@ -43,12 +61,11 @@ export async function startConnection(toolkit: string, callbackUrl: string): Pro
 
 /** Deletes an account only if it belongs to this install's Composio user. */
 export async function disconnect(accountId: string): Promise<void> {
-  const composio = client();
-  const { items } = await composio.connectedAccounts.list({ userIds: [COMPOSIO_USER_ID], limit: 100 });
-  if (!items.some((account) => account.id === accountId)) {
+  const accounts = await listAccounts();
+  if (!accounts.some((account) => account.id === accountId)) {
     throw new Error("Account belongs to a different Composio user");
   }
-  await composio.connectedAccounts.delete(accountId);
+  await client().connectedAccounts.delete(accountId);
 }
 
 async function findOrCreateAuthConfig(composio: Composio, toolkit: string): Promise<string> {
@@ -63,10 +80,9 @@ const LABEL_FIELDS = ["email", "user_email", "account_email", "username", "login
 
 /** Best-effort human label (an email or handle) from the account's connection data. */
 function accountLabel(account: Record<string, unknown>): string | null {
-  const bags = ["state", "data", "params"]
-    .map((key) => account[key])
-    .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === "object");
-  for (const bag of [...bags, ...bags.map((b) => b.val).filter(isRecord)]) {
+  const bags = ["state", "data", "params"].map((key) => account[key]).filter(isRecord);
+  const nested = bags.map((bag) => bag.val).filter(isRecord);
+  for (const bag of [...bags, ...nested]) {
     for (const field of LABEL_FIELDS) {
       const value = bag[field];
       if (typeof value === "string" && value.trim()) return value.trim();
@@ -75,6 +91,29 @@ function accountLabel(account: Record<string, unknown>): string | null {
   return null;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+// —— Tool execution ———————————————————————————————————————————————————————
+
+/**
+ * Runs a Composio action on the toolkit's active account and returns its data.
+ * Throws when the action reports a failure.
+ */
+export async function runComposioTool(
+  toolkit: string,
+  slug: string,
+  args: Record<string, unknown> = {},
+): Promise<unknown> {
+  const connectedAccountId = await getActiveAccountId(toolkit);
+  const response = (await client().tools.execute(slug, {
+    userId: COMPOSIO_USER_ID,
+    connectedAccountId,
+    arguments: args,
+    // Pinned toolkit versions shouldn't block the demo.
+    dangerouslySkipVersionCheck: true,
+  })) as { successful?: boolean; error?: unknown; data?: unknown };
+
+  if (response.successful === false || response.error) {
+    const { error } = response;
+    throw new Error(typeof error === "string" ? error : error ? JSON.stringify(error) : `${slug} failed`);
+  }
+  return response.data ?? response;
 }

@@ -1,5 +1,6 @@
-import { PageHeader } from "@novacrm/ui/domain";
+import { Board } from "@/components/desk/Board";
+import "@/components/desk/desk.css";
 
 export default function HomePage() {
-  return <PageHeader title="Home" />;
+  return <Board />;
 }

@@ -40,6 +40,14 @@ export type IntegrationRowProps = {
   className?: string;
 };
 
+/** Placeholder bar sizes, in render order: title row, facts line, scope chips, action. */
+const SKELETON_TITLE = [120, 72, 96];
+const SKELETON_SCOPES = [52, 64, 48, 70];
+
+function SkeletonBar({ width, height }: { width: number | string; height: number }) {
+  return <span className="t-integration__skel-bar" style={{ width, height }} />;
+}
+
 export function IntegrationRowSkeleton() {
   return (
     <li className="t-integration t-integration--skel" aria-hidden>
@@ -47,48 +55,20 @@ export function IntegrationRowSkeleton() {
         <div className="t-integration__mark t-integration__skel-block" />
         <div className="t-integration__body">
           <div className="t-integration__title-row">
-            <span
-              className="t-integration__skel-bar"
-              style={{ width: 120, height: 14 }}
-            />
-            <span
-              className="t-integration__skel-bar"
-              style={{ width: 72, height: 18 }}
-            />
-            <span
-              className="t-integration__skel-bar"
-              style={{ width: 96, height: 18 }}
-            />
+            {SKELETON_TITLE.map((width, i) => (
+              <SkeletonBar key={i} width={width} height={i === 0 ? 14 : 18} />
+            ))}
           </div>
-          <span
-            className="t-integration__skel-bar"
-            style={{ width: "55%", height: 12 }}
-          />
+          <SkeletonBar width="55%" height={12} />
           <div className="t-integration__scopes">
-            <span
-              className="t-integration__skel-bar"
-              style={{ width: 52, height: 18 }}
-            />
-            <span
-              className="t-integration__skel-bar"
-              style={{ width: 64, height: 18 }}
-            />
-            <span
-              className="t-integration__skel-bar"
-              style={{ width: 48, height: 18 }}
-            />
-            <span
-              className="t-integration__skel-bar"
-              style={{ width: 70, height: 18 }}
-            />
+            {SKELETON_SCOPES.map((width, i) => (
+              <SkeletonBar key={i} width={width} height={18} />
+            ))}
           </div>
         </div>
       </div>
       <div className="t-integration__aside">
-        <span
-          className="t-integration__skel-bar"
-          style={{ width: 88, height: 32 }}
-        />
+        <SkeletonBar width={88} height={32} />
       </div>
     </li>
   );
@@ -113,11 +93,10 @@ export function IntegrationRow({
   manageLabel = "Manage",
   className,
 }: IntegrationRowProps) {
-  const pending = busyAction != null;
-  const btn = (action: IntegrationBusyAction) => ({
+  /** Only the in-flight button spins; while one is busy the others are locked. */
+  const actionState = (action: IntegrationBusyAction) => ({
     loading: busyAction === action,
-    // Lock non-pending buttons when this row is working; honor parent disable otherwise.
-    disabled: pending ? busyAction !== action : disabled,
+    disabled: busyAction != null ? busyAction !== action : disabled,
   });
 
   return (
@@ -133,18 +112,9 @@ export function IntegrationRow({
         <div className="t-integration__mark" aria-hidden>
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoUrl}
-              alt=""
-              width={32}
-              height={32}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
+            <img src={logoUrl} alt="" width={32} height={32} loading="lazy" referrerPolicy="no-referrer" />
           ) : (
-            <span className="t-integration__mark-fallback">
-              {name.slice(0, 1)}
-            </span>
+            <span className="t-integration__mark-fallback">{name.slice(0, 1)}</span>
           )}
         </div>
 
@@ -154,59 +124,27 @@ export function IntegrationRow({
             {meta ? <div className="t-integration__meta">{meta}</div> : null}
           </div>
           {facts ? <div className="t-integration__facts">{facts}</div> : null}
-          {attention ? (
-            <p className="t-integration__attention">{attention}</p>
-          ) : null}
+          {attention ? <p className="t-integration__attention">{attention}</p> : null}
           {scopes ? <div className="t-integration__scopes">{scopes}</div> : null}
         </div>
       </div>
 
       <div className="t-integration__aside">
-        {connected && onReconnect ? (
+        {connected ? (
           <>
-            <Button
-              variant="primary"
-              {...btn("reconnect")}
-              onClick={onReconnect}
-            >
-              Reconnect
-            </Button>
+            {onReconnect ? (
+              <Button variant="primary" {...actionState("reconnect")} onClick={onReconnect}>
+                Reconnect
+              </Button>
+            ) : null}
             {onManage ? (
-              <Button
-                variant="secondary"
-                {...btn("manage")}
-                onClick={onManage}
-              >
+              <Button variant="secondary" {...actionState("manage")} onClick={onManage}>
                 {manageLabel}
               </Button>
             ) : null}
             {onDisconnect ? (
-              <Button
-                variant="plain"
-                {...btn("disconnect")}
-                onClick={onDisconnect}
-              >
-                {disconnectLabel}
-              </Button>
-            ) : null}
-          </>
-        ) : connected ? (
-          <>
-            {onManage ? (
-              <Button
-                variant="secondary"
-                {...btn("manage")}
-                onClick={onManage}
-              >
-                {manageLabel}
-              </Button>
-            ) : null}
-            {onDisconnect ? (
-              <Button
-                variant="secondary"
-                {...btn("disconnect")}
-                onClick={onDisconnect}
-              >
+              // Next to Reconnect, Disconnect steps back visually.
+              <Button variant={onReconnect ? "plain" : "secondary"} {...actionState("disconnect")} onClick={onDisconnect}>
                 {disconnectLabel}
               </Button>
             ) : null}
@@ -214,8 +152,8 @@ export function IntegrationRow({
         ) : (
           <Button
             variant="primary"
-            {...btn("connect")}
-            disabled={btn("connect").disabled || !onConnect}
+            loading={busyAction === "connect"}
+            disabled={actionState("connect").disabled || !onConnect}
             onClick={onConnect}
           >
             {connectLabel}

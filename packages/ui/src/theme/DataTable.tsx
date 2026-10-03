@@ -34,11 +34,8 @@ export type DataTableProps = {
   onPageChange?: (page: number) => void;
 };
 
-const stageToneMap: Record<DataTableStageTone, "accent" | "guess" | "stale"> = {
-  accent: "accent",
-  guess: "guess",
-  stale: "stale",
-};
+/** Loading placeholder bars; undefined means full width. */
+const SKELETON_WIDTHS = [undefined, undefined, "72%", "60%", "50%"];
 
 export function DataTable({
   title,
@@ -99,7 +96,7 @@ export function DataTable({
             </span>
             <span className="t-table__co">{row.company}</span>
             <span className="t-table__role">{row.role}</span>
-            <Chip tone={stageToneMap[row.stageTone ?? "stale"]}>{row.stage}</Chip>
+            <Chip tone={row.stageTone ?? "stale"}>{row.stage}</Chip>
             <span className="t-table__touch">{row.lastTouch}</span>
           </div>
         );
@@ -107,11 +104,9 @@ export function DataTable({
 
       {showSkeleton ? (
         <div className="t-table__skel" aria-hidden>
-          <span className="t-table__skel-bar" />
-          <span className="t-table__skel-bar" />
-          <span className="t-table__skel-bar" style={{ width: "72%" }} />
-          <span className="t-table__skel-bar" style={{ width: "60%" }} />
-          <span className="t-table__skel-bar" style={{ width: "50%" }} />
+          {SKELETON_WIDTHS.map((width, i) => (
+            <span key={i} className="t-table__skel-bar" style={width ? { width } : undefined} />
+          ))}
         </div>
       ) : null}
 

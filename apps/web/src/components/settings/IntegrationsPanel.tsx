@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Banner,
   Button,
@@ -12,31 +12,16 @@ import {
   type IntegrationBusyAction,
 } from "@novacrm/ui";
 import {
-  type ComposioConnection,
+  GROUP_LABEL,
   GROUP_ORDER,
   INTEGRATIONS,
-  type IntegrationDef,
+  METHOD_LABEL,
+  integrationLogoUrl,
   type IntegrationGroup,
   type IntegrationsStatus,
-  METHOD_LABEL,
-  integrationGroupLabel,
-  integrationLogoUrl,
 } from "@/lib/integrations";
-
-const ACTIVE = "ACTIVE";
-
-type IntegrationRuntime = {
-  def: IntegrationDef;
-  connected: boolean;
-  identity: string | null;
-  attention: string | null;
-  connection: ComposioConnection | null;
-};
-
-type Flash =
-  | { kind: "toast"; text: string }
-  | { kind: "error"; title: string; text: string }
-  | null;
+import { errorText, requestJson } from "@/lib/request-json";
+import { friendlyError, integrationName, toRowState, type IntegrationRowState } from "./integration-rows";
 
 const GROUP_HINT: Record<IntegrationGroup, string> = {
   core: "Needed to pick up new deals and set up their onboarding projects.",
@@ -44,106 +29,48 @@ const GROUP_HINT: Record<IntegrationGroup, string> = {
   voice: "Used to call account executives and read deal emails. These keys live on the server.",
 };
 
-function integrationName(toolkit: string): string {
-  return INTEGRATIONS.find((integration) => integration.toolkit === toolkit)?.name ?? toolkit;
-}
+/** How long "Confirm disconnect" stays armed. */
+const CONFIRM_MS = 4000;
 
-function friendlyError(raw: string): string {
-  const message = raw.trim();
-  if (!message) return "Something went wrong.";
-  if (/failed to fetch|networkerror|load failed/i.test(message)) return "Can't reach the app server. Is it running?";
-  if (/api key|unauthorized|401|invalid key/i.test(message)) {
-    return "Composio didn't accept the API key. Check it in the Composio dashboard.";
-  }
-  try {
-    return decodeURIComponent(message.replace(/\+/g, " "));
-  } catch {
-    return message;
-  }
-}
+type Flash = { kind: "toast"; text: string } | { kind: "error"; title: string; text: string } | null;
 
-function connectionAttention(connection: ComposioConnection): string | null {
-  const status = connection.status.toUpperCase();
-  if (status === ACTIVE) return null;
-  if (status.includes("EXPIR") || status.includes("REVOK")) {
-    return `Connection ${connection.status.toLowerCase()} — reconnect to keep tools working.`;
-  }
-  if (status.includes("INIT") || status.includes("PENDING")) {
-    return "Authorization didn't finish — connect again to complete it.";
-  }
-  return `Account status: ${connection.status}. Reconnect if tools start failing.`;
-}
-
-function resolveIntegration(def: IntegrationDef, status: IntegrationsStatus | null): IntegrationRuntime {
-  if (def.method === "api-key") {
-    return {
-      def,
-      connected: Boolean(status?.apiKeysSet[def.id]),
-      identity: null,
-      attention: status && !status.apiKeysSet[def.id] ? `Add ${def.envVar} to .env to turn this on.` : null,
-      connection: null,
-    };
-  }
-  const connection = status?.connections.find((c) => c.toolkit === def.toolkit) ?? null;
-  const slackMock = def.id === "slack" && status?.slackMode === "mock";
-  return {
-    def,
-    connected: connection?.status === ACTIVE,
-    identity: connection?.label ?? null,
-    attention: connection
-      ? connectionAttention(connection)
-      : slackMock
-        ? "Simulated for now — nothing is posted to Slack yet."
-        : null,
-    connection,
-  };
-}
-
-async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init);
-  const body = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new Error(body.error ?? `Request failed (${response.status})`);
-  return body;
-}
+type Busy = { action: "connect" | "disconnect"; id: string } | null;
 
 export function IntegrationsPanel() {
   const [status, setStatus] = useState<IntegrationsStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState<Busy>(null);
   const [flash, setFlash] = useState<Flash>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  // Only the latest load may update state.
   const loadSeq = useRef(0);
-  const confirmTimer = useRef<number | null>(null);
+  const confirmTimer = useRef<number | undefined>(undefined);
 
-  const showToast = useCallback((text: string) => setFlash({ kind: "toast", text }), []);
+  const showToast = (text: string) => setFlash({ kind: "toast", text });
   const showError = useCallback(
-    (title: string, text: string) => setFlash({ kind: "error", title, text: friendlyError(text) }),
+    (title: string, error: unknown) => setFlash({ kind: "error", title, text: friendlyError(errorText(error, "")) }),
     [],
   );
-  const clearFlash = useCallback(() => setFlash(null), []);
+  const clearFlash = () => setFlash(null);
 
   const load = useCallback(
-    async (opts?: { quiet?: boolean; announceError?: boolean }): Promise<boolean> => {
+    async ({ quiet = false, announceError = true } = {}): Promise<boolean> => {
       const seq = ++loadSeq.current;
-      const announceError = opts?.announceError !== false;
-      if (opts?.quiet) setRefreshing(true);
-      else setLoading(true);
+      const isLatest = () => seq === loadSeq.current;
+      (quiet ? setRefreshing : setLoading)(true);
       try {
         const next = await requestJson<IntegrationsStatus>("/api/integrations");
-        if (seq !== loadSeq.current) return false;
+        if (!isLatest()) return false;
         setStatus(next);
-        if (announceError && next.composio.error) {
-          showError("Couldn't load integrations", next.composio.error);
-          return false;
-        }
-        return true;
+        if (!next.composio.error) return true;
+        if (announceError) showError("Couldn't load integrations", new Error(next.composio.error));
+        return false;
       } catch (error) {
-        if (seq !== loadSeq.current) return false;
-        if (announceError) showError("Couldn't load integrations", error instanceof Error ? error.message : "Failed to load");
+        if (isLatest() && announceError) showError("Couldn't load integrations", error);
         return false;
       } finally {
-        if (seq === loadSeq.current) {
+        if (isLatest()) {
           setLoading(false);
           setRefreshing(false);
         }
@@ -152,44 +79,30 @@ export function IntegrationsPanel() {
     [showError],
   );
 
+  // First load, plus the outcome Composio's connect flow sent back in the URL.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
     const error = params.get("error");
-    if (connected) setFlash({ kind: "toast", text: `${integrationName(connected)} is connected.` });
-    if (error) setFlash({ kind: "error", title: "Connection didn't finish", text: friendlyError(error) });
+    if (connected) showToast(`${integrationName(connected)} is connected.`);
+    if (error) showError("Connection didn't finish", new Error(error));
     if (connected || error) window.history.replaceState({}, "", "/settings#integrations");
     void load({ announceError: !connected && !error });
-  }, [load]);
+  }, [load, showError]);
 
-  useEffect(() => {
-    return () => {
-      if (confirmTimer.current != null) window.clearTimeout(confirmTimer.current);
-    };
-  }, []);
-
-  const rows = useMemo(() => INTEGRATIONS.map((def) => resolveIntegration(def, status)), [status]);
-  const byGroup = useMemo(
-    () =>
-      GROUP_ORDER.map((group) => ({
-        group,
-        label: integrationGroupLabel(group),
-        rows: rows.filter((row) => row.def.group === group),
-      })),
-    [rows],
-  );
+  useEffect(() => () => window.clearTimeout(confirmTimer.current), []);
 
   const configured = Boolean(status?.composio.configured);
   const showSkeleton = loading && status === null;
-  const anyBusy = busy != null;
+  const rows = INTEGRATIONS.map((def) => toRowState(def, status));
 
-  async function connect(row: IntegrationRuntime) {
+  async function connect(row: IntegrationRowState) {
     if (busy) return;
     if (!configured) {
-      showError("Composio isn't set up", "Add COMPOSIO_API_KEY to .env, then try again.");
+      showError("Composio isn't set up", new Error("Add COMPOSIO_API_KEY to .env, then try again."));
       return;
     }
-    setBusy(`connect:${row.def.id}`);
+    setBusy({ action: "connect", id: row.def.id });
     clearFlash();
     try {
       const { redirectUrl } = await requestJson<{ redirectUrl: string }>("/api/integrations/connect", {
@@ -199,14 +112,14 @@ export function IntegrationsPanel() {
       });
       window.location.href = redirectUrl;
     } catch (error) {
-      showError(`Couldn't connect ${row.def.name}`, error instanceof Error ? error.message : "Connect failed");
+      showError(`Couldn't connect ${row.def.name}`, error);
       setBusy(null);
     }
   }
 
-  async function disconnect(row: IntegrationRuntime) {
+  async function disconnect(row: IntegrationRowState) {
     if (busy || !row.connection) return;
-    setBusy(`disconnect:${row.def.id}`);
+    setBusy({ action: "disconnect", id: row.def.id });
     setConfirmId(null);
     clearFlash();
     try {
@@ -216,42 +129,47 @@ export function IntegrationsPanel() {
       showToast(`${row.def.name} is disconnected.`);
       await load({ quiet: true, announceError: false });
     } catch (error) {
-      showError(`Couldn't disconnect ${row.def.name}`, error instanceof Error ? error.message : "Disconnect failed");
+      showError(`Couldn't disconnect ${row.def.name}`, error);
     } finally {
       setBusy(null);
     }
   }
 
-  function requestConfirm(id: string, action: () => void) {
-    if (confirmId === id) {
-      action();
+  /** First click arms "Confirm disconnect"; a second click within CONFIRM_MS disconnects. */
+  function disconnectWithConfirm(row: IntegrationRowState) {
+    if (confirmId === row.def.id) {
+      void disconnect(row);
       return;
     }
-    setConfirmId(id);
-    if (confirmTimer.current != null) window.clearTimeout(confirmTimer.current);
-    confirmTimer.current = window.setTimeout(() => setConfirmId(null), 4000);
+    setConfirmId(row.def.id);
+    window.clearTimeout(confirmTimer.current);
+    confirmTimer.current = window.setTimeout(() => setConfirmId(null), CONFIRM_MS);
   }
 
-  function busyActionFor(row: IntegrationRuntime): IntegrationBusyAction | null {
-    if (busy === `disconnect:${row.def.id}`) return "disconnect";
-    if (busy === `connect:${row.def.id}`) return row.connection ? "reconnect" : "connect";
-    return null;
+  function busyActionFor(row: IntegrationRowState): IntegrationBusyAction | null {
+    if (busy?.id !== row.def.id) return null;
+    if (busy.action === "disconnect") return "disconnect";
+    return row.connection ? "reconnect" : "connect";
+  }
+
+  async function refresh() {
+    if (await load({ quiet: true })) showToast("Refreshed.");
   }
 
   return (
     <Card
       title="Integrations"
       actions={
-        !showSkeleton ? (
+        showSkeleton ? null : (
           <Button
             variant="secondary"
             loading={refreshing}
-            disabled={anyBusy || refreshing}
-            onClick={() => void load({ quiet: true }).then((ok) => ok && showToast("Refreshed."))}
+            disabled={busy !== null || refreshing}
+            onClick={() => void refresh()}
           >
             Refresh
           </Button>
-        ) : null
+        )
       }
     >
       <div className="settings-integrations-main">
@@ -274,53 +192,24 @@ export function IntegrationsPanel() {
             <IntegrationRowSkeleton />
           </ul>
         ) : (
-          byGroup.map(({ group, label, rows: groupRows }) => (
+          GROUP_ORDER.map((group) => (
             <div key={group} className="t-integration-group">
-              <h4 className="t-integration-group__label">{label}</h4>
+              <h4 className="t-integration-group__label">{GROUP_LABEL[group]}</h4>
               <p className="settings-group-hint">{GROUP_HINT[group]}</p>
               <ul className="t-integration-list">
-                {groupRows.map((row) => {
-                  const viaComposio = row.def.method === "composio";
-                  const confirmKey = `disc:${row.def.id}`;
-                  return (
-                    <IntegrationRow
+                {rows
+                  .filter((row) => row.def.group === group)
+                  .map((row) => (
+                    <SettingsIntegrationRow
                       key={row.def.id}
-                      name={row.def.name}
-                      logoUrl={integrationLogoUrl(row.def.toolkit)}
-                      connected={row.connected}
+                      row={row}
                       busyAction={busyActionFor(row)}
-                      disabled={anyBusy || (viaComposio && !configured)}
-                      attention={row.attention}
-                      onConnect={viaComposio ? () => void connect(row) : undefined}
-                      onReconnect={viaComposio && row.connected ? () => void connect(row) : undefined}
-                      onDisconnect={
-                        viaComposio && row.connected
-                          ? () => requestConfirm(confirmKey, () => void disconnect(row))
-                          : undefined
-                      }
-                      disconnectLabel={confirmId === confirmKey ? "Confirm disconnect" : "Disconnect"}
-                      connectLabel={viaComposio ? "Connect" : "Set in .env"}
-                      meta={
-                        <>
-                          {row.connected ? (
-                            <Chip tone="ok" size="sm">
-                              Connected
-                            </Chip>
-                          ) : null}
-                          <Chip tone={row.connected ? "accent" : "muted"} size="sm">
-                            {METHOD_LABEL[row.def.method]}
-                          </Chip>
-                          {row.identity ? (
-                            <Chip tone="guess" size="sm">
-                              {row.identity}
-                            </Chip>
-                          ) : null}
-                        </>
-                      }
-                      facts={row.def.scope}
+                      disabled={busy !== null || (row.def.method === "composio" && !configured)}
+                      confirming={confirmId === row.def.id}
+                      onConnect={() => void connect(row)}
+                      onDisconnect={() => disconnectWithConfirm(row)}
                     />
-                  );
-                })}
+                  ))}
               </ul>
             </div>
           ))
@@ -333,5 +222,58 @@ export function IntegrationsPanel() {
         ) : null}
       </div>
     </Card>
+  );
+}
+
+function SettingsIntegrationRow({
+  row,
+  busyAction,
+  disabled,
+  confirming,
+  onConnect,
+  onDisconnect,
+}: {
+  row: IntegrationRowState;
+  busyAction: IntegrationBusyAction | null;
+  disabled: boolean;
+  confirming: boolean;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}) {
+  // API-key integrations are configured in .env, so they have no actions here.
+  const viaComposio = row.def.method === "composio";
+  const canManage = viaComposio && row.connected;
+  return (
+    <IntegrationRow
+      name={row.def.name}
+      logoUrl={integrationLogoUrl(row.def.toolkit)}
+      connected={row.connected}
+      busyAction={busyAction}
+      disabled={disabled}
+      attention={row.attention}
+      onConnect={viaComposio ? onConnect : undefined}
+      onReconnect={canManage ? onConnect : undefined}
+      onDisconnect={canManage ? onDisconnect : undefined}
+      disconnectLabel={confirming ? "Confirm disconnect" : "Disconnect"}
+      connectLabel={viaComposio ? "Connect" : "Set in .env"}
+      meta={
+        <>
+          {row.connected ? (
+            <Chip tone="ok" size="sm">
+              Connected
+            </Chip>
+          ) : null}
+          <Chip tone={row.connected ? "accent" : "muted"} size="sm">
+            {METHOD_LABEL[row.def.method]}
+          </Chip>
+          {row.identity ? (
+            <Chip tone="guess" size="sm">
+              {row.identity}
+            </Chip>
+          ) : null}
+        </>
+      }
+      facts={row.def.scope}
+    />
   );
 }

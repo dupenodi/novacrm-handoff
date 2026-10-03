@@ -11,10 +11,15 @@ NovaCRM CS receives a closed-won handoff from an AE. Agents turn that into a Roc
 | Piece | Status |
 |-------|--------|
 | Rocketlane templates + overdue automations | Real (done) |
-| Gmail via Composio | Connected; intake agent not wired yet |
-| Sarvam outbound tier call | Building block in code; agent built in Sarvam dashboard |
-| Slack | Modeled; `SLACK_MODE=mock` by default |
-| Operator UI runs | Still seed/mock until intake writes live runs |
+| Gmail via Composio | Connected; tools live (`gmail.*`) |
+| Salesforce | **Real** (ACTIVE `ca_PDBEjtKkXoME`); tools live (`salesforce.*`) |
+| Rocketlane create/list | Tools live |
+| Slack | **Real** (ACTIVE); mock auto-fallback if API fails (`SLACK_MODE=real`) |
+| `llm.extract_deal` | OpenRouter structured extract (no regex) |
+| Sarvam outbound tier call | Building block + `POST /api/runs/[id]/confirm-tier` |
+| Runs / audit HTTP API | Live (`docs/API.md`); SQLite `.data/novacrm.sqlite` |
+| Agent runtime | Vercel AI SDK `ToolLoopAgent` + OpenRouter (`docs/AGENTS.md`) |
+| Operator UI runs | Home board + `/runs/[id]` (Signal ThreadRow / ToolCall / FailureCard) |
 
 ## Rocketlane (done)
 
@@ -24,6 +29,52 @@ NovaCRM CS receives a closed-won handoff from an AE. Agents turn that into a Roc
 - No create-template API → seed projects, then Save as template; deleted unused Simple Onboarding
 
 ## Decisions
+
+### 2026-10-02 — Slack real confirmed; OpenRouter deal extract
+
+- **Choice:** Keep `SLACK_MODE=real` with mock backup; smoke-tested `SLACK_CREATE_CHANNEL` + `SLACK_CHAT_POST_MESSAGE` against ACTIVE account
+- **Choice:** Replace heuristic `llm.extract_deal` with `generateText` + `Output.object` (Zod) via OpenRouter — no invented fields
+- **Why:** Connection proven end-to-end; intake classification must be agentic for the interview story
+
+### 2026-10-02 — Salesforce connected + demo seed
+
+- **Choice:** ACTIVE `ca_PDBEjtKkXoME`; seeded Acme Logistics Account + Closed Won Opportunity `006f600000BQX24AAH` + Contact Priya Shah
+- **Why:** Fresh SF org was empty; enrich path needs at least one opp for demos
+- **Verify:** `SALESFORCE_GET_OPPORTUNITY` returns Acme / $120k / Closed Won
+
+### 2026-10-02 — Composio tools wired (no stubs)
+
+- **Choice:** `executeComposioTool(toolkit, slug, args)` + real Gmail / Salesforce / Rocketlane / Slack tool executes; Slack respects `SLACK_MODE=mock`
+- **SF search:** `SALESFORCE_EXECUTE_SOQL_QUERY` (Account LIKE) — no dedicated search-account slug
+- **Rocketlane create:** maps tier → template ids from `rocketlane-playbooks.json`
+
+### 2026-10-02 — Vercel AI SDK ToolLoopAgent
+
+- **Choice:** Agent loop via `ai` package `ToolLoopAgent` + OpenRouter; keep our tool registry and SQLite persistence
+- **Why:** Real multi-step tool calling without inventing a framework; interview-familiar stack
+- **Rejected:** Homegrown only invokeTool loop; LangGraph (heavier for this take-home)
+- **Entry:** `runAgent()` → `POST /api/runs/[id]/agents/[agent]`
+
+### 2026-10-02 — Opportunity URL optional; Salesforce used for enrich when connected
+
+- **Choice:** Missing opp link does **not** fail the run. When Salesforce is connected and an opp id/name exists, Intake enriches via Composio; otherwise continue with email + voice gap-fill
+- **Why:** Agentic intake; SF is enrichment, not a hard dependency
+- **Rejected:** Blocking create on missing SF link; requiring live SF for every demo
+- **Trade-off:** Mock opportunities in Salesforce for demos when you want enrich path
+
+### 2026-10-02 — Modular agents + SQLite + reusable voice
+
+- **Choice:** Two agents (`intake`, `communication`) with shared SQLite state; tools registered once; `voice.call_ae` is agent-agnostic but allowlisted to intake; Salesforce via Composio for enrich only
+- **Why:** Interview-clear separation; Sarvam usable by any future agent without rewriting telephony; local DB for sessions/tool traces
+- **AE phone:** `DEMO_AE_PHONE` / persona directory always rings your number in demos
+- **Spec:** [`docs/AGENTS.md`](AGENTS.md)
+
+### 2026-10-02 — Run-centric API (no `/api/dev`)
+
+- **Choice:** `POST /api/runs` + `POST /api/runs/[id]/confirm-tier`; delete `/api/dev/sarvam/tier-call` and leftover Vapi module
+- **Why:** Two NovaCRM agents (intake, communication); Sarvam is a tool on intake. Smoke tests should create real runs/audit
+- **Rejected:** Provider-scoped `/api/dev/*` smoke routes
+- **Contract:** [`docs/API.md`](API.md)
 
 ### 2026-10-02 — Sarvam Voice Agents replace Vapi
 
@@ -70,6 +121,13 @@ NovaCRM CS receives a closed-won handoff from an AE. Agents turn that into a Roc
 - **Why:** Agentic demo, not brittle keyword gates
 - **Rejected:** `/closed[- ]?won/i` subject filter
 
+### 2026-10-02 — Continue + scan + operator UI
+
+- **Choice:** Deterministic `continue` (Rocketlane then Slack) — no extra LLM loop
+- **Choice:** `POST /api/intake/scan` classifies with OpenRouter; missing fields reply via Gmail
+- **Choice:** Home is the run board; `/runs/[id]` shows steps + tool invocations using Signal agent/domain components
+- **Why:** Interview needs a visible trail, not just curl
+
 ## Open questions / assumptions
 
 - AE phone comes from deal email or CRM later; for the Sarvam smoke test use the `aePhone` body or `SARVAM_TEST_AE_NUMBER`
@@ -78,6 +136,7 @@ NovaCRM CS receives a closed-won handoff from an AE. Agents turn that into a Roc
 ## Demo notes (Sarvam slice)
 
 1. Fill `SARVAM_*` in `.env` (see README)
-2. `pnpm dev` → `POST http://localhost:3100/api/dev/sarvam/tier-call` with your phone as `aePhone`
-3. Answer clearly “Enterprise” or “Growth” → `outcome: confirmed`
-4. Ignore / vague → `no_answer` or `ambiguous` → retry helper `nextRetryAt`
+2. `pnpm dev` → `POST /api/runs` then `POST /api/runs/{id}/confirm-tier`
+3. Answer clearly “Enterprise” or “Growth” → `outcome: confirmed`, stage `creating_project`
+4. Ignore / vague → `nextStep` retry or escalate via `nextStepFor`
+

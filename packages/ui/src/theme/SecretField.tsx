@@ -8,6 +8,7 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from "react";
+import { FieldLabel, FieldMessage } from "./field";
 import { cx } from "./utils";
 
 /** Fixed length so every saved secret renders the same password-dot row. */
@@ -59,21 +60,17 @@ export function SecretField({
   const hasMasked = Boolean(masked);
   const [editing, setEditing] = useState(!hasMasked);
 
-  useEffect(() => {
-    if (hasMasked) setEditing(false);
-    else setEditing(true);
-  }, [masked, hasMasked]);
+  // A newly saved secret goes back to the dots; clearing it opens the field.
+  useEffect(() => setEditing(!hasMasked), [masked, hasMasked]);
 
+  // Clicking Edit on a saved secret focuses the field.
   useEffect(() => {
-    if (editing && hasMasked) {
-      inputRef.current?.focus();
-    }
+    if (editing && hasMasked) inputRef.current?.focus();
   }, [editing, hasMasked]);
 
   const showFilled = hasMasked && !editing;
-  const hasDraft = value.length > 0;
-  /** Dots only when there is something to hide. */
-  const usePassword = showFilled || hasDraft;
+  // Dots only when there is something to hide.
+  const usePassword = showFilled || value.length > 0;
 
   function startEdit() {
     setEditing(true);
@@ -87,14 +84,7 @@ export function SecretField({
 
   return (
     <div className={cx("t-secretfield", className)}>
-      {label ? (
-        <label
-          htmlFor={id}
-          className={labelHidden ? "t-visually-hidden" : "t-label"}
-        >
-          {label}
-        </label>
-      ) : null}
+      <FieldLabel id={id} label={label} hidden={labelHidden} />
 
       <div className="t-secretfield__row">
         <input
@@ -121,35 +111,13 @@ export function SecretField({
           }}
         />
         {hasMasked && !disabled ? (
-          showFilled ? (
-            <button
-              type="button"
-              className="t-secretfield__action"
-              onClick={startEdit}
-            >
-              Edit
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="t-secretfield__action"
-              onClick={cancelEdit}
-            >
-              Cancel
-            </button>
-          )
+          <button type="button" className="t-secretfield__action" onClick={showFilled ? startEdit : cancelEdit}>
+            {showFilled ? "Edit" : "Cancel"}
+          </button>
         ) : null}
       </div>
 
-      {error && typeof error !== "boolean" ? (
-        <p id={helpId} className="t-textfield__error" role="alert">
-          {error}
-        </p>
-      ) : helpText ? (
-        <p id={helpId} className="t-textfield__help">
-          {helpText}
-        </p>
-      ) : null}
+      <FieldMessage block="t-textfield" id={helpId} error={error} helpText={helpText} />
     </div>
   );
 }

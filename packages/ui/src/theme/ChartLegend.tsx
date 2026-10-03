@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import {
   CHART_COLOR_FALLBACK,
   CHART_COLOR_VAR,
@@ -30,52 +30,28 @@ export function ChartLegend({
   return (
     <div className={cx("t-chart-legend", className)} {...rest}>
       {items.map((item, i) => {
-        const markStyle: CSSProperties = {
-          background:
-            CHART_COLOR_VAR[item.color] ?? CHART_COLOR_FALLBACK[item.color],
-        };
+        const itemClass = cx(
+          "t-chart-legend__item",
+          item.onClick && "is-clickable",
+          item.active === false && "is-dim",
+        );
         const body = (
           <>
             <span
-              className={cx(
-                "t-chart-legend__mark",
-                variant === "swatch"
-                  ? "t-chart-legend__mark--swatch"
-                  : "t-chart-legend__mark--line",
-              )}
-              style={markStyle}
+              className={cx("t-chart-legend__mark", `t-chart-legend__mark--${variant}`)}
+              style={{ background: CHART_COLOR_VAR[item.color] ?? CHART_COLOR_FALLBACK[item.color] }}
               aria-hidden
             />
             <span className="t-chart-legend__label">{item.label}</span>
-            {item.end != null ? (
-              <span className="t-chart-legend__end">{item.end}</span>
-            ) : null}
+            {item.end != null ? <span className="t-chart-legend__end">{item.end}</span> : null}
           </>
         );
-        if (item.onClick) {
-          return (
-            <button
-              key={i}
-              type="button"
-              className={cx(
-                "t-chart-legend__item",
-                "is-clickable",
-                item.active === false && "is-dim",
-              )}
-              onClick={item.onClick}
-            >
-              {body}
-            </button>
-          );
-        }
-        return (
-          <div
-            key={i}
-            className={cx(
-              "t-chart-legend__item",
-              item.active === false && "is-dim",
-            )}
-          >
+        return item.onClick ? (
+          <button key={i} type="button" className={itemClass} onClick={item.onClick}>
+            {body}
+          </button>
+        ) : (
+          <div key={i} className={itemClass}>
             {body}
           </div>
         );

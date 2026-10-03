@@ -5,7 +5,7 @@ import { cx } from "./utils";
 import "./tokens.css";
 import "./components.css";
 
-export type ThemeName = "signal" | "pressure";
+export type ThemeName = "signal" | "pressure" | "geist";
 
 export type ThemeProviderProps = {
   theme: ThemeName;

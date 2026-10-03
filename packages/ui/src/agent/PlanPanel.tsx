@@ -18,6 +18,9 @@ export type PlanPanelProps = {
   className?: string;
 };
 
+const STEP_MARK: Record<PlanStep["status"], string> = { done: "✓", active: "›", queued: "", idle: "" };
+const STEP_NOTE: Record<PlanStep["status"], string> = { done: "done", active: "writing", queued: "queued", idle: "" };
+
 export function PlanPanel({
   headline,
   steps,
@@ -60,7 +63,7 @@ export function PlanPanel({
                 )}
                 aria-hidden
               >
-                {step.status === "done" ? "✓" : step.status === "active" ? "›" : ""}
+                {STEP_MARK[step.status]}
               </span>
               <span
                 className={cx(
@@ -71,16 +74,7 @@ export function PlanPanel({
                 {step.label}
               </span>
               {step.note || step.status !== "idle" ? (
-                <span className="a-plan-step__note">
-                  {step.note ??
-                    (step.status === "done"
-                      ? "done"
-                      : step.status === "active"
-                        ? "writing"
-                        : step.status === "queued"
-                          ? "queued"
-                          : "")}
-                </span>
+                <span className="a-plan-step__note">{step.note ?? STEP_NOTE[step.status]}</span>
               ) : null}
             </div>
           ))}

@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { FieldLabel, FieldMessage } from "./field";
+import { PickerChevron, PickerList, optionId, useDismiss, wrapIndex } from "./picker";
 import { cx } from "./utils";
 
 export type ComboboxOption = {
@@ -34,29 +28,21 @@ export type ComboboxProps = {
   noMatchText?: string;
 };
 
-function normalizeOptions(
-  options: Array<string | ComboboxOption>,
-): ComboboxOption[] {
-  return options.map((opt) =>
-    typeof opt === "string" ? { value: opt, label: opt } : opt,
-  );
+function toOption(option: string | ComboboxOption): ComboboxOption {
+  return typeof option === "string" ? { value: option, label: option } : option;
 }
 
-function Chevron() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
-      <path
-        d="M2.5 4.25 6 7.75l3.5-3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+/** Options whose value or text label contains the query. */
+function filterOptions(options: ComboboxOption[], query: string): ComboboxOption[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return options;
+  return options.filter((option) => {
+    const text = typeof option.label === "string" ? option.label : option.value;
+    return option.value.toLowerCase().includes(q) || text.toLowerCase().includes(q);
+  });
 }
 
+/** A text input with a filtered suggestion list. */
 export function Combobox({
   label,
   labelHidden = false,
@@ -77,114 +63,59 @@ export function Combobox({
   const id = idProp ?? uid;
   const listId = `${id}-list`;
   const helpId = helpText || error ? `${id}-help` : undefined;
-  const hasError = Boolean(error);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
 
-  const normalized = useMemo(() => normalizeOptions(options), [options]);
+  const normalized = useMemo(() => options.map(toOption), [options]);
+  const filtered = useMemo(() => filterOptions(normalized, value), [normalized, value]);
+  const showList = open && !disabled;
 
-  const filtered = useMemo(() => {
-    const q = value.trim().toLowerCase();
-    if (!q) return normalized;
-    return normalized.filter((opt) => {
-      const labelText =
-        typeof opt.label === "string" ? opt.label : opt.value;
-      return (
-        opt.value.toLowerCase().includes(q) ||
-        labelText.toLowerCase().includes(q)
-      );
-    });
-  }, [normalized, value]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-        setActive(-1);
-      }
-    }
-    document.addEventListener("mousedown", onPointer);
-    return () => document.removeEventListener("mousedown", onPointer);
-  }, [open]);
-
-  useEffect(() => {
+  const close = useCallback(() => {
+    setOpen(false);
     setActive(-1);
-  }, [value, open]);
+  }, []);
+  useDismiss(open, [rootRef], close);
 
   function pick(next: string) {
     onChange(next);
-    setOpen(false);
-    setActive(-1);
+    close();
     inputRef.current?.focus();
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (disabled) return;
+    const { key } = e;
 
-    if (e.key === "ArrowDown") {
+    if (key === "ArrowDown" || key === "ArrowUp") {
       e.preventDefault();
-      if (!open) {
-        setOpen(true);
-        setActive(filtered.length ? 0 : -1);
-        return;
-      }
-      if (!filtered.length) return;
-      setActive((i) => (i + 1) % filtered.length);
-      return;
-    }
-
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (!open) {
-        setOpen(true);
-        setActive(filtered.length ? filtered.length - 1 : -1);
-        return;
-      }
-      if (!filtered.length) return;
-      setActive((i) => (i <= 0 ? filtered.length - 1 : i - 1));
-      return;
-    }
-
-    if (e.key === "Enter" && open && active >= 0 && filtered[active]) {
+      // Opening lands on the first (down) or last (up) option.
+      if (!open) setOpen(true);
+      if (filtered.length) setActive((i) => wrapIndex(open ? i : -1, key === "ArrowDown" ? 1 : -1, filtered.length));
+    } else if (key === "Enter" && open && filtered[active]) {
       e.preventDefault();
       pick(filtered[active].value);
-      return;
-    }
-
-    if (e.key === "Escape" && open) {
+    } else if (key === "Escape" && open) {
       e.preventDefault();
-      setOpen(false);
-      setActive(-1);
+      close();
     }
   }
 
-  const showList = open && !disabled;
-  const activeId =
-    showList && active >= 0 && filtered[active]
-      ? `${listId}-opt-${active}`
-      : undefined;
+  /** Without custom values, leaving the field snaps an unknown value to the first option. */
+  function onBlur() {
+    if (allowCustom || normalized.some((o) => o.value === value)) return;
+    if (normalized[0]) onChange(normalized[0].value);
+  }
+
+  function emptyMessage(): string {
+    if (!value.trim()) return emptyText;
+    return allowCustom ? `${noMatchText} — keep typing` : noMatchText;
+  }
 
   return (
-    <div
-      ref={rootRef}
-      className={cx(
-        "t-picker",
-        "t-combobox",
-        showList && "t-picker--open",
-        className,
-      )}
-    >
-      {label ? (
-        <label
-          htmlFor={id}
-          className={labelHidden ? "t-visually-hidden" : "t-label"}
-        >
-          {label}
-        </label>
-      ) : null}
+    <div ref={rootRef} className={cx("t-picker", "t-combobox", showList && "t-picker--open", className)}>
+      <FieldLabel id={id} label={label} hidden={labelHidden} />
 
       <div className="t-picker__field">
         <input
@@ -194,13 +125,10 @@ export function Combobox({
           aria-expanded={showList}
           aria-controls={listId}
           aria-autocomplete="list"
-          aria-activedescendant={activeId}
-          aria-invalid={hasError || undefined}
+          aria-activedescendant={showList && filtered[active] ? optionId(listId, active) : undefined}
+          aria-invalid={Boolean(error) || undefined}
           aria-describedby={helpId}
-          className={cx(
-            "t-picker__control",
-            hasError && "t-picker__control--error",
-          )}
+          className={cx("t-picker__control", Boolean(error) && "t-picker__control--error")}
           value={value}
           disabled={disabled}
           placeholder={placeholder}
@@ -208,90 +136,40 @@ export function Combobox({
           autoComplete="off"
           onChange={(e) => {
             onChange(e.target.value);
-            if (!open) setOpen(true);
+            setOpen(true);
+            setActive(-1);
           }}
           onFocus={() => {
             if (!disabled) setOpen(true);
           }}
-          onBlur={() => {
-            if (allowCustom) return;
-            const match = normalized.find((o) => o.value === value);
-            if (!match && normalized[0]) {
-              onChange(normalized[0].value);
-            }
-          }}
+          onBlur={onBlur}
           onKeyDown={onKeyDown}
         />
-        <button
-          type="button"
-          className="t-picker__chevron"
-          tabIndex={-1}
+        <PickerChevron
+          open={showList}
           disabled={disabled}
-          aria-label={showList ? "Hide options" : "Show options"}
-          onMouseDown={(e) => {
-            e.preventDefault();
+          onToggle={() => {
             if (disabled) return;
-            setOpen((v) => !v);
+            if (open) close();
+            else setOpen(true);
             inputRef.current?.focus();
           }}
-        >
-          <Chevron />
-        </button>
+        />
 
         {showList ? (
-          <ul id={listId} role="listbox" className="t-picker__list">
-            {filtered.length === 0 ? (
-              <li className="t-picker__empty" role="presentation">
-                {value.trim()
-                  ? allowCustom
-                    ? `${noMatchText} — keep typing`
-                    : noMatchText
-                  : emptyText}
-              </li>
-            ) : (
-              filtered.map((opt, i) => {
-                const selected = opt.value === value;
-                return (
-                  <li
-                    key={opt.value}
-                    id={`${listId}-opt-${i}`}
-                    role="option"
-                    aria-selected={selected}
-                    className={cx(
-                      "t-picker__option",
-                      i === active && "t-picker__option--active",
-                    )}
-                    onMouseEnter={() => setActive(i)}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      pick(opt.value);
-                    }}
-                  >
-                    <span className="t-picker__option-label">
-                      {opt.label ?? opt.value}
-                    </span>
-                    {selected ? (
-                      <span className="t-picker__check" aria-hidden>
-                        ✓
-                      </span>
-                    ) : null}
-                  </li>
-                );
-              })
-            )}
-          </ul>
+          <PickerList
+            listId={listId}
+            items={filtered}
+            value={value}
+            active={active}
+            emptyText={emptyMessage()}
+            onHover={setActive}
+            onPick={pick}
+          />
         ) : null}
       </div>
 
-      {error && typeof error !== "boolean" ? (
-        <p id={helpId} className="t-picker__error" role="alert">
-          {error}
-        </p>
-      ) : helpText ? (
-        <p id={helpId} className="t-picker__help">
-          {helpText}
-        </p>
-      ) : null}
+      <FieldMessage block="t-picker" id={helpId} error={error} helpText={helpText} />
     </div>
   );
 }

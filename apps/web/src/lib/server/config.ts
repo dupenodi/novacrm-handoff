@@ -19,5 +19,15 @@ export const SARVAM_APP_VERSION = Number(process.env.SARVAM_APP_VERSION?.trim() 
 export const SARVAM_CONNECTION_ID = process.env.SARVAM_CONNECTION_ID?.trim() ?? "";
 export const SARVAM_AGENT_PHONE_NUMBER = process.env.SARVAM_AGENT_PHONE_NUMBER?.trim() ?? "";
 
-/** Optional default AE number for the local tier-call smoke test. */
+/** Optional default AE number for demos / Sarvam smoke tests. */
 export const SARVAM_TEST_AE_NUMBER = process.env.SARVAM_TEST_AE_NUMBER?.trim() ?? "";
+
+/** All persona phones resolve here for demos (your handset). */
+export const DEMO_AE_PHONE = process.env.DEMO_AE_PHONE?.trim() || SARVAM_TEST_AE_NUMBER;
+
+/** OpenRouter — Vercel AI SDK model provider for agent tool loops. */
+export const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY?.trim() ?? "";
+export const OPENROUTER_MODEL =
+  process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-4o-mini";
+
+export const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL?.trim() ?? "";

@@ -9,3 +9,7 @@ next-env.d.ts
 .env*.local
 .DS_Store
 .playwright-mcp/
+.data/
+
+# Local reference docs
+*.pdf

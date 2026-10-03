@@ -2,6 +2,7 @@
 
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { useId } from "react";
+import { FieldMessage } from "./field";
 import { cx } from "./utils";
 
 export type CheckboxProps = {
@@ -54,13 +55,7 @@ export function Checkbox({
         </span>
         <span className="t-checkbox__label">{label}</span>
       </label>
-      {error && typeof error !== "boolean" ? (
-        <p className="t-checkbox__error" role="alert">
-          {error}
-        </p>
-      ) : helpText ? (
-        <p className="t-checkbox__help">{helpText}</p>
-      ) : null}
+      <FieldMessage block="t-checkbox" error={error} helpText={helpText} />
     </div>
   );
 }

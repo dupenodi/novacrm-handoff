@@ -17,6 +17,14 @@ export type IntegrationDef = {
 
 export const INTEGRATIONS: IntegrationDef[] = [
   {
+    id: "salesforce",
+    name: "Salesforce",
+    toolkit: "salesforce",
+    group: "core",
+    method: "composio",
+    scope: "Enrich deal fields from mock opportunities when the email has an opp link or account name.",
+  },
+  {
     id: "gmail",
     name: "Gmail",
     toolkit: "gmail",
@@ -71,19 +79,20 @@ export const METHOD_LABEL: Record<IntegrationMethod, string> = {
 
 export const GROUP_ORDER: IntegrationGroup[] = ["core", "communication", "voice"];
 
-export function integrationGroupLabel(group: IntegrationGroup): string {
-  switch (group) {
-    case "core":
-      return "Core";
-    case "communication":
-      return "Communication";
-    case "voice":
-      return "Voice & AI";
-  }
-}
+export const GROUP_LABEL: Record<IntegrationGroup, string> = {
+  core: "Core",
+  communication: "Communication",
+  voice: "Voice & AI",
+};
+
+/** Official marks for providers Composio doesn't logo. Served from /public/logos. */
+const LOCAL_LOGOS: Record<string, string> = {
+  sarvam: "/logos/sarvam.svg",
+  openrouter: "/logos/openrouter.svg",
+};
 
 export function integrationLogoUrl(toolkit: string): string {
-  return `https://logos.composio.dev/api/${encodeURIComponent(toolkit)}`;
+  return LOCAL_LOGOS[toolkit] ?? `https://logos.composio.dev/api/${encodeURIComponent(toolkit)}`;
 }
 
 export type ComposioConnection = {
@@ -101,5 +110,8 @@ export type IntegrationsStatus = {
   connections: ComposioConnection[];
   /** Which API-key integrations have their env var set. */
   apiKeysSet: Record<string, boolean>;
-  slackMode: "mock" | "real";
+  slackMode: "mock" | "real" | "real_strict";
+  /** What tools will actually use right now (real only if Slack is ACTIVE). */
+  slackEffective?: "mock" | "real";
+  slackReason?: string;
 };

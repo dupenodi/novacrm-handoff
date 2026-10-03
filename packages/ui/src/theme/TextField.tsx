@@ -6,6 +6,7 @@ import type {
   ReactNode,
 } from "react";
 import { useId } from "react";
+import { FieldLabel, FieldMessage } from "./field";
 import { cx } from "./utils";
 
 export type TextFieldProps = {
@@ -36,14 +37,7 @@ export function TextField({
 
   return (
     <div className={cx("t-textfield", className)}>
-      {label ? (
-        <label
-          htmlFor={id}
-          className={labelHidden ? "t-visually-hidden" : "t-label"}
-        >
-          {label}
-        </label>
-      ) : null}
+      <FieldLabel id={id} label={label} hidden={labelHidden} />
 
       <input
         {...rest}
@@ -61,15 +55,7 @@ export function TextField({
         }
       />
 
-      {error && typeof error !== "boolean" ? (
-        <p id={helpId} className="t-textfield__error" role="alert">
-          {error}
-        </p>
-      ) : helpText ? (
-        <p id={helpId} className="t-textfield__help">
-          {helpText}
-        </p>
-      ) : null}
+      <FieldMessage block="t-textfield" id={helpId} error={error} helpText={helpText} />
     </div>
   );
 }

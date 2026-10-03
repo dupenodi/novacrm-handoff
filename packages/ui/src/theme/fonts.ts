@@ -1,3 +1,5 @@
+import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 
 export const spaceGrotesk = Space_Grotesk({
@@ -14,4 +16,4 @@ export const ibmPlexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
-export const themeFontVariables = `${spaceGrotesk.variable} ${ibmPlexMono.variable}`;
+export const themeFontVariables = `${GeistSans.variable} ${GeistMono.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable}`;

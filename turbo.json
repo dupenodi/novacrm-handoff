@@ -1,7 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
-  "globalEnv": ["COMPOSIO_*", "SARVAM_*", "OPENROUTER_*", "ROCKETLANE_*", "SLACK_*"],
+  "globalEnv": ["COMPOSIO_*", "SARVAM_*", "OPENROUTER_*", "ROCKETLANE_*", "SLACK_*", "SUPABASE_*", "PUBLIC_APP_URL", "DEMO_AE_PHONE"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
