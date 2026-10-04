@@ -4,6 +4,8 @@ AI agents that onboard a new customer for NovaCRM's customer success team: from 
 
 Live app: https://novacrm-handoff.vercel.app
 
+Demo recording: [Rocketlane FDE.mp4](https://drive.google.com/file/d/1vl0Qp8eYHH9nYrr9BEFSJKA2SBN2gtzQ/view?usp=sharing)
+
 ## Read this first
 
 - [Problem statement](PROBLEM_STATEMENT.md): the original assignment.
