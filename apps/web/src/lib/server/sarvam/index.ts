@@ -1,132 +1,123 @@
 import "server-only";
-import type { PlanTier, VoiceTurn } from "@/lib/clients";
+import type { CallOutcome, VoiceTurn } from "@/lib/types";
 import { errorMessage, str } from "../util";
-import {
-  assertSarvamConfigured,
-  fetchTranscript,
-  findAttempt,
-  normalizePhone,
-  startOutboundCall,
-  type SarvamAttempt,
-} from "./api";
-import { interpretAttempt, isFinished, type TierCallOutcome } from "./interpret";
-import { parseTranscript } from "./transcript";
+import { assertSarvamConfigured, normalizePhone, startOutboundCall, type CallWebhook } from "./api";
+import { interpretCall } from "./interpret";
+import { waitForCall } from "./webhook";
 
-export { isSarvamConfigured } from "./api";
-export type { TierCallOutcome } from "./interpret";
-
-export type TierCallResult = {
+export type PlanCallResult = {
   attemptId: string | null;
   interactionId: string | null;
-  tier: PlanTier | null;
-  outcome: TierCallOutcome;
+  /** The option the AE picked, exactly as offered, when the plan was confirmed. */
+  plan: string | null;
+  /** Details the AE gave on the call, keyed by the Sarvam variable name (e.g. contact_email). */
+  collected: Record<string, string>;
+  outcome: CallOutcome;
   aeQuote: string | null;
   /** AE's own words for when to call back, if they asked for one. */
   callbackTime: string | null;
   notes: string | null;
-  connectivityStatus: string | null;
   failureReason: string | null;
   transcript: VoiceTurn[];
-  raw: unknown;
 };
 
-export type TierCallInput = {
+export type PlanCallInput = {
   aePhone: string;
   aeName: string;
   customerName: string;
+  /** The plans to offer: names of Rocketlane project templates. */
+  options: string[];
+  /** Details to collect, keyed by Sarvam variable name, with how Nova should ask for them. */
+  missing: Array<{ variable: string; label: string }>;
 };
 
-type WaitOptions = { timeoutMs?: number; intervalMs?: number };
-
 /**
- * Calls the AE, waits until Sarvam has recorded and extracted the call, and
- * returns the interpreted tier outcome. Call failures come back as outcome "failed".
+ * Calls the AE to confirm which plan the customer signed (from `options`) and collect any missing
+ * details, waits for Sarvam to report the call over, and returns the interpreted outcome. Call
+ * failures come back as outcome "failed".
  */
-export async function confirmPlanTier(input: TierCallInput, wait?: WaitOptions): Promise<TierCallResult> {
+export async function confirmPlan(input: PlanCallInput): Promise<PlanCallResult> {
   assertSarvamConfigured();
   const phone = normalizePhone(input.aePhone);
   if (phone.replace(/\D/g, "").length < 10) throw new Error(`Invalid AE phone number: ${input.aePhone}`);
 
-  const startedAt = new Date();
   let attemptId: string;
   try {
-    attemptId = await startOutboundCall({ phone, aeName: input.aeName, customerName: input.customerName });
+    attemptId = await startOutboundCall({
+      phone,
+      aeName: input.aeName,
+      customerName: input.customerName,
+      planOptions: spokenList(input.options),
+      missingDetails: input.missing.length ? spokenList(input.missing.map((m) => m.label), "and") : "none",
+    });
   } catch (error) {
     return failedResult(null, errorMessage(error, "Could not start the call"));
   }
 
   try {
-    const attempt = await waitForAttempt(attemptId, startedAt, wait);
-    return {
-      ...toResult(attempt, attemptId),
-      transcript: await transcriptFor(attempt),
-    };
+    return toResult(await waitForCall(attemptId), input);
   } catch (error) {
     return failedResult(attemptId, errorMessage(error, "Lost track of the call"));
   }
 }
 
-async function waitForAttempt(
-  attemptId: string,
-  since: Date,
-  { timeoutMs = 180_000, intervalMs = 3_000 }: WaitOptions = {},
-): Promise<SarvamAttempt> {
-  const deadline = Date.now() + timeoutMs;
-  let last: SarvamAttempt | null = null;
-  while (Date.now() < deadline) {
-    last = await findAttempt(attemptId, since);
-    if (last && isFinished(last)) return last;
-    await sleep(intervalMs);
-  }
-  throw new Error(
-    `Timed out waiting for Sarvam attempt ${attemptId} (last status: ${last?.connectivity_status ?? "not recorded yet"})`,
-  );
+/**
+ * Sarvam reports "no conversation" both when nobody picked up and when the AE answered but the
+ * call ended before the plan came up — usually because Nova couldn't hear them. The transcript
+ * tells the two apart.
+ */
+function refineOutcome(outcome: CallOutcome, transcript: VoiceTurn[]): CallOutcome {
+  if (outcome === "no_answer" && transcript.some((turn) => turn.speaker === "ae")) return "cut_off";
+  return outcome;
 }
 
-function toResult(attempt: SarvamAttempt, attemptId: string): TierCallResult {
-  const vars = attempt.agent_variables ?? {};
-  // Analytics reports the literal "NO_FAILURE_REASON" on clean calls.
-  const failureReason = attempt.failure_reason === "NO_FAILURE_REASON" ? null : attempt.failure_reason || null;
+/** "Growth, Enterprise or Mid Market" */
+function spokenList(items: string[], last = "or"): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} ${last} ${items.at(-1)}`;
+}
+
+function toResult(call: CallWebhook, input: PlanCallInput): PlanCallResult {
+  const vars = call.final_agent_variables ?? {};
+  const transcript = toTranscript(call);
+  const { outcome, plan } = interpretCall(call, input.options);
   return {
-    ...interpretAttempt(attempt),
-    attemptId,
-    interactionId: attempt.interaction_id ?? null,
+    attemptId: call.attempt_id,
+    interactionId: call.interaction_id ?? null,
+    plan,
+    collected: Object.fromEntries(
+      input.missing.flatMap(({ variable }) => {
+        const value = str(vars[variable]);
+        return value && value.toLowerCase() !== "unknown" ? [[variable, value]] : [];
+      }),
+    ),
+    outcome: refineOutcome(outcome, transcript),
     aeQuote: str(vars.ae_quote) || null,
     callbackTime: str(vars.callback_time) || null,
     notes: str(vars.notes) || null,
-    connectivityStatus: attempt.connectivity_status ?? null,
-    failureReason,
-    transcript: [],
-    raw: attempt,
+    failureReason: call.failure_reason || null,
+    transcript,
   };
 }
 
-/** The transcript is a nice-to-have; a failed fetch shouldn't fail the call. */
-async function transcriptFor(attempt: SarvamAttempt): Promise<VoiceTurn[]> {
-  if (!attempt.interaction_id) return [];
-  try {
-    return parseTranscript(await fetchTranscript(attempt.interaction_id));
-  } catch {
-    return [];
-  }
+function toTranscript(call: CallWebhook): VoiceTurn[] {
+  return (call.interaction_transcript ?? []).map((turn) => ({
+    speaker: turn.role === "agent" ? "nova" : "ae",
+    text: turn.en_text,
+  }));
 }
 
-function failedResult(attemptId: string | null, reason: string): TierCallResult {
+function failedResult(attemptId: string | null, reason: string): PlanCallResult {
   return {
     attemptId,
     interactionId: null,
-    tier: null,
+    plan: null,
+    collected: {},
     outcome: "failed",
     aeQuote: null,
     callbackTime: null,
     notes: null,
-    connectivityStatus: null,
     failureReason: reason,
     transcript: [],
-    raw: null,
   };
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

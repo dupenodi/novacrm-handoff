@@ -1,67 +1,230 @@
-/* Fallbacks when outside [data-theme] (e.g. portaled overlays). */
+/* Design tokens and base styles. Component styles live next to each component as CSS modules. */
+
 :root {
-  --t-scroll-size: 8px;
-  --t-scroll-track: transparent;
-  --t-scroll-thumb: #b9c1d1;
-  --t-scroll-thumb-hover: #8a93a8;
+  color-scheme: light;
+
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --surface-2: #f5f5f3;
+  --surface-3: #ececea;
+  --border: #e7e6e3;
+  --border-strong: #d6d5d1;
+
+  --text: #1c1b19;
+  --text-2: #5c5a55;
+  --text-3: #8d8a84;
+
+  --accent: #c2643f;
+  --accent-soft: #f8ece6;
+  --accent-text: #9a4a2b;
+
+  --blue: #2a6bd6;
+  --blue-soft: #eaf1fc;
+  --green: #23855a;
+  --green-soft: #e7f4ed;
+  --amber: #a8650a;
+  --amber-soft: #fcf2e1;
+  --amber-border: #f0dcb6;
+  --red: #c23b3b;
+  --red-soft: #fcebeb;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  --shadow-xs: 0 1px 2px rgb(28 27 25 / 0.05);
+  --shadow-lg: 0 18px 48px rgb(28 27 25 / 0.14), 0 4px 12px rgb(28 27 25 / 0.06);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --sidebar-width: 288px;
+  --topbar-height: 56px;
+  --content-width: 760px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --bg: #171716;
+    --surface: #1f1f1d;
+    --surface-2: #262624;
+    --surface-3: #30302d;
+    --border: #2f2f2c;
+    --border-strong: #3d3d39;
+
+    --text: #ecebe8;
+    --text-2: #a9a7a1;
+    --text-3: #7b7974;
+
+    --accent: #d97a55;
+    --accent-soft: #3a2a22;
+    --accent-text: #eea283;
+
+    --blue: #6aa0f2;
+    --blue-soft: #1f2c40;
+    --green: #4cb985;
+    --green-soft: #1b3127;
+    --amber: #e0a24a;
+    --amber-soft: #352a19;
+    --amber-border: #4d3b1f;
+    --red: #ec7a7a;
+    --red-soft: #3a2121;
+
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 18px 48px rgb(0 0 0 / 0.5);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 html {
-  scrollbar-gutter: stable;
+  -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
 
 html,
 body {
   margin: 0;
-  min-height: 100%;
-  min-height: 100dvh;
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  background: #fafafa;
-  color: #171717;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.015em;
+  font-weight: 600;
 }
 
 a {
-  color: #1b34ff;
+  color: inherit;
   text-decoration: none;
 }
 
-a:hover {
-  color: #0f24cc;
-  text-decoration: underline;
+button {
+  font: inherit;
+  color: inherit;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+img,
+svg {
+  display: block;
+  flex-shrink: 0;
 }
 
 ::selection {
-  background: #c9d0ff;
+  background: var(--accent-soft);
+  color: var(--text);
 }
 
-/* Thin, themed scrollbars (Firefox + Chromium/WebKit). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--t-scroll-thumb) var(--t-scroll-track);
+  scrollbar-color: var(--border-strong) transparent;
 }
 
-*::-webkit-scrollbar {
-  width: var(--t-scroll-size);
-  height: var(--t-scroll-size);
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-*::-webkit-scrollbar-track {
-  background: var(--t-scroll-track);
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
-*::-webkit-scrollbar-thumb {
-  background-color: var(--t-scroll-thumb);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
 }
 
-*::-webkit-scrollbar-thumb:hover {
-  background-color: var(--t-scroll-thumb-hover);
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-*::-webkit-scrollbar-corner {
-  background: transparent;
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

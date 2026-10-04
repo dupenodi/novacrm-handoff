@@ -1,32 +1,37 @@
 # HTTP API
 
-Errors: `{ "error": "message", "code": "optional_code" }`
+Errors: `{ "error": "message", "code": "optional_code" }`. Types are in `apps/web/src/lib/types.ts` and `step-outputs.ts`.
 
-## Clients
+## Deals
 
-| Method | Path | Body | Response |
-|--------|------|------|----------|
-| `GET` | `/api/clients` | — | `{ clients }` |
-| `GET` | `/api/clients/[id]` | — | `{ client, intake, comms }` |
-| `POST` | `/api/clients/[id]/intake` | — | SSE tool/text stream |
-| `POST` | `/api/clients/[id]/comms` | — | SSE tool/text stream |
+| Method | Path | Response |
+|--------|------|----------|
+| `GET` | `/api/deals` | `{ deals: DealSummary[] }` |
+| `GET` | `/api/deals/[id]` | `DealView`: deal, source email, replies, runs, steps, Rocketlane link |
+| `POST` | `/api/deals/[id]/retry` | `202`. Runs again from the first unfinished agent. `409` unless the deal needs attention |
+| `POST` | `/api/deals/[id]/advance` | `202`. Internal hand-off between agents, body `{ "from": "intake" }`. Starts the next agent only if `from` still holds the deal |
 
-Client `stage`: `received` → `project` → `comms`.
+Deal `status`: `new` → `intake` → `comms` → `done`, or `attention` when it's waiting on a person.
 
-## Mail
+## Inbox
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `/api/webhooks/composio` | Gmail new-message trigger |
-| `GET`/`POST` | `/api/mail/poll` | Cheap LLM classify, every 5 min or manual |
-| `POST` | `/api/mail/setup` | Enable `GMAIL_NEW_GMAIL_MESSAGE` (needs `PUBLIC_APP_URL`) |
+| `GET` | `/api/inbox` | `{ watch: InboxWatch, recent: Email[] }` |
+| `POST` | `/api/inbox/check` | Read recent inbox mail now; returns `{ checked, newDeals, ignored }` |
+| `POST` / `DELETE` | `/api/inbox/watch` | Turn the Composio Gmail trigger on or off (needs `PUBLIC_APP_URL`) |
+| `POST` | `/api/webhooks/composio` | Gmail trigger delivery; signature verified with the stored secret |
+| `POST` | `/api/webhooks/sarvam?secret=…` | AE call result from Sarvam (outcome, agent variables, transcript); `secret` must equal `SARVAM_WEBHOOK_SECRET`. Saved to `novacrm_calls`, where the waiting call step picks it up |
 
-## Other
+## Integrations
 
 | Method | Path |
 |--------|------|
-| `GET` | `/api/agents` |
 | `GET` | `/api/integrations` |
 | `POST` | `/api/integrations/connect` |
+| `GET` | `/api/integrations/callback` |
+| `DELETE` | `/api/integrations/accounts/[id]` |
 
-SQLite: `apps/web/.data/app.sqlite`
+## Storage
+
+Supabase (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), schema in `apps/web/supabase/schema.sql`: `novacrm_emails`, `novacrm_deals`, `novacrm_runs`, `novacrm_run_steps`, `novacrm_calls`, `novacrm_kv`. RLS is on with no policies, so only the server can read them.

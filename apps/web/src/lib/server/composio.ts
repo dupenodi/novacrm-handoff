@@ -10,7 +10,7 @@ export function isComposioConfigured(): boolean {
   return COMPOSIO_API_KEY.length > 0;
 }
 
-function client(): Composio {
+export function client(): Composio {
   if (!isComposioConfigured()) throw new Error("COMPOSIO_API_KEY is not set");
   return new Composio({ apiKey: COMPOSIO_API_KEY, allowTracking: false });
 }
@@ -39,7 +39,7 @@ export async function listConnections(): Promise<ComposioConnection[]> {
   }));
 }
 
-/** Active connected-account id for a toolkit (gmail, rocketlane, slack, salesforce). */
+/** Active connected-account id for a toolkit (gmail, rocketlane, slack). */
 export async function getActiveAccountId(toolkit: string): Promise<string> {
   const connection = (await listConnections()).find(
     (c) => c.toolkit === toolkit.toLowerCase() && c.status === ACTIVE,
@@ -76,7 +76,7 @@ async function findOrCreateAuthConfig(composio: Composio, toolkit: string): Prom
   return created.id;
 }
 
-const LABEL_FIELDS = ["email", "user_email", "account_email", "username", "login", "name", "display_name"];
+const LABEL_FIELDS = ["email", "displayName", "user_email", "account_email", "username", "login", "name", "display_name"];
 
 /** Best-effort human label (an email or handle) from the account's connection data. */
 function accountLabel(account: Record<string, unknown>): string | null {
@@ -116,4 +116,17 @@ export async function runComposioTool(
     throw new Error(typeof error === "string" ? error : error ? JSON.stringify(error) : `${slug} failed`);
   }
   return response.data ?? response;
+}
+
+/** Calls a toolkit's REST API directly through Composio, for endpoints its tools don't cover well. */
+export async function proxyComposio(
+  toolkit: string,
+  request: { endpoint: string; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown },
+): Promise<unknown> {
+  const connectedAccountId = await getActiveAccountId(toolkit);
+  const response = await client().tools.proxyExecute({ ...request, connectedAccountId });
+  if (response.status >= 400) {
+    throw new Error(`${toolkit} ${request.method} ${request.endpoint} failed (${response.status}): ${JSON.stringify(response.data)}`);
+  }
+  return response.data;
 }

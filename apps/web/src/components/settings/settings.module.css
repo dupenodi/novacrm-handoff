@@ -1,0 +1,190 @@
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.groupHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.groupTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.groupHint {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--border);
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.logo img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.rowTitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 22px;
+}
+
+.rowName {
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.rowScope {
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.rowIdentity {
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.rowAttention {
+  margin-top: 6px;
+  color: var(--amber);
+  font-size: 12.5px;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 36px;
+}
+
+.envName {
+  padding: 3px 7px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 11.5px;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--amber-border);
+  border-radius: var(--radius);
+  background: var(--amber-soft);
+}
+
+.banner > svg {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--amber);
+}
+
+.bannerError {
+  border-color: color-mix(in srgb, var(--red) 28%, var(--border));
+  background: var(--red-soft);
+}
+
+.bannerError > svg {
+  color: var(--red);
+}
+
+.banner > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.bannerTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.bannerText {
+  margin-top: 1px;
+  color: var(--text-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.watch {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.watchMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.watchMain .rowTitle > span:first-child {
+  margin-right: 2px;
+}
+
+@media (max-width: 640px) {
+  .row,
+  .watch {
+    flex-wrap: wrap;
+  }
+
+  .rowActions {
+    width: 100%;
+    padding-left: 50px;
+    min-height: 0;
+  }
+
+  .watch .rowActions {
+    padding-left: 0;
+  }
+}

@@ -1,0 +1,249 @@
+/* —— Pipeline ————————————————————————————————————————————————————————— */
+
+.pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin: 0 0 36px;
+  padding: 0;
+  list-style: none;
+}
+
+.stageArrowWrapper {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.stageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.stageIcon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.stageIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.stageArrow {
+  width: 16px;
+  height: 16px;
+  color: var(--text-3);
+}
+
+.stageTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.stageText {
+  flex: 1;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.stageStat {
+  display: flex;
+  align-items: center;
+  min-height: 18px;
+  margin-top: 12px;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* —— Needs attention ———————————————————————————————————————————————— */
+
+.attentionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attentionItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  border: 1px solid var(--amber-border);
+  border-radius: var(--radius);
+  background: var(--amber-soft);
+  transition: border-color 120ms var(--ease);
+}
+
+.attentionItem:hover {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--amber-border));
+}
+
+.attentionIcon {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--amber);
+}
+
+.attentionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.attentionName {
+  font-weight: 550;
+}
+
+.attentionReason {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.chevron {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--text-3);
+}
+
+/* —— Inbox activity ——————————————————————————————————————————————————— */
+
+.activity {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity > li + li,
+.activity > div + div {
+  border-top: 1px solid var(--border);
+}
+
+.activityRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  transition: background-color 120ms var(--ease);
+}
+
+a.activityRow:hover {
+  background: var(--surface-2);
+}
+
+.activityIcon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.activityIcon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.activityIcon[data-verdict="deal"] {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.activityIcon[data-verdict="duplicate"] {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.activityIcon[data-verdict="reply"] {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.activityBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.activitySubject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.activityRow[data-muted] .activitySubject {
+  color: var(--text-2);
+}
+
+.activityMeta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.activityTime {
+  flex-shrink: 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.inlineLink {
+  color: var(--accent-text);
+  font-weight: 550;
+}
+
+.inlineLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .pipeline {
+    flex-direction: column;
+  }
+
+  .stage {
+    flex: none;
+    width: 100%;
+  }
+
+  .stageArrow {
+    transform: rotate(90deg);
+  }
+}

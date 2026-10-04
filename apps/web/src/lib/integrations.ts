@@ -1,7 +1,7 @@
 /** Integration catalog and the status shape the Settings panel renders. Safe to import on the client. */
 
 export type IntegrationGroup = "core" | "communication" | "voice";
-export type IntegrationMethod = "composio" | "api-key";
+type IntegrationMethod = "composio" | "api-key";
 
 export type IntegrationDef = {
   id: string;
@@ -17,20 +17,12 @@ export type IntegrationDef = {
 
 export const INTEGRATIONS: IntegrationDef[] = [
   {
-    id: "salesforce",
-    name: "Salesforce",
-    toolkit: "salesforce",
-    group: "core",
-    method: "composio",
-    scope: "Enrich deal fields from mock opportunities when the email has an opp link or account name.",
-  },
-  {
     id: "gmail",
     name: "Gmail",
     toolkit: "gmail",
     group: "core",
     method: "composio",
-    scope: "Watches the onboarding inbox for newly closed deals.",
+    scope: "Watches the CS inbox for deal handoff emails and replies to AEs.",
   },
   {
     id: "rocketlane",
@@ -64,18 +56,13 @@ export const INTEGRATIONS: IntegrationDef[] = [
     group: "voice",
     method: "api-key",
     envVar: "OPENROUTER_API_KEY",
-    scope: "Reads deal emails and makes sense of what's said on calls.",
+    scope: "Runs the Intake and Communication agents and reads deal emails.",
   },
 ];
 
 export const COMPOSIO_TOOLKITS = new Set(
   INTEGRATIONS.filter((integration) => integration.method === "composio").map((integration) => integration.toolkit),
 );
-
-export const METHOD_LABEL: Record<IntegrationMethod, string> = {
-  composio: "Composio",
-  "api-key": "API key",
-};
 
 export const GROUP_ORDER: IntegrationGroup[] = ["core", "communication", "voice"];
 
@@ -110,8 +97,7 @@ export type IntegrationsStatus = {
   connections: ComposioConnection[];
   /** Which API-key integrations have their env var set. */
   apiKeysSet: Record<string, boolean>;
-  slackMode: "mock" | "real" | "real_strict";
-  /** What tools will actually use right now (real only if Slack is ACTIVE). */
-  slackEffective?: "mock" | "real";
-  slackReason?: string;
+  slackMode: "mock" | "real";
+  /** What Slack calls will actually do right now (real only if Slack is ACTIVE). */
+  slackEffective: "mock" | "real";
 };

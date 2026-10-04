@@ -1,22 +1,9 @@
-import type { PlanTier } from "@/lib/clients";
-import { str } from "../util";
-import type { SarvamAttempt } from "./api";
-
-export type TierCallOutcome =
-  | "confirmed"
-  | "ambiguous"
-  | "callback_requested"
-  | "wrong_person"
-  | "deal_not_closed"
-  | "declined"
-  | "no_answer"
-  | "busy"
-  | "failed";
-
-const NO_ANSWER_STATUSES = ["no_answer", "not_connected", "voicemail"];
+import type { CallOutcome } from "@/lib/types";
+import { sameText, str } from "../util";
+import type { CallWebhook } from "./api";
 
 /** The agent's `call_outcome` variable, mapped to our outcome. */
-const AGENT_OUTCOMES: Record<string, TierCallOutcome> = {
+const AGENT_OUTCOMES: Record<string, CallOutcome> = {
   callback_requested: "callback_requested",
   wrong_person: "wrong_person",
   deal_not_closed: "deal_not_closed",
@@ -25,36 +12,34 @@ const AGENT_OUTCOMES: Record<string, TierCallOutcome> = {
   ae_unsure: "ambiguous",
 };
 
-/** A call is finished once it failed to connect, or connected and the output variables are extracted. */
-export function isFinished(attempt: SarvamAttempt): boolean {
-  const status = (attempt.connectivity_status ?? "").toLowerCase();
-  if (!status) return false;
-  if (status !== "connected") return true;
-  const vars = attempt.agent_variables ?? {};
-  return Boolean(attempt.end_datetime && (vars.call_outcome || vars.tier));
-}
+/**
+ * Reads the outcome and, when confirmed, the plan from a finished call. The plan only counts
+ * when it is one of the options offered, said with confidence; anything else is unclear.
+ */
+export function interpretCall(
+  call: CallWebhook,
+  options: string[],
+): { outcome: CallOutcome; plan: string | null } {
+  if (call.status === "busy") return { outcome: "busy", plan: null };
+  if (call.status === "no_answer") return { outcome: "no_answer", plan: null };
+  if (call.status !== "connected") return { outcome: "failed", plan: null };
 
-/** Reads the outcome and (when confirmed) the tier from a finished attempt. */
-export function interpretAttempt(attempt: SarvamAttempt): { outcome: TierCallOutcome; tier: PlanTier | null } {
-  const status = (attempt.connectivity_status ?? "").toLowerCase();
-  if (status.includes("busy")) return { outcome: "busy", tier: null };
-  if (NO_ANSWER_STATUSES.some((s) => status.includes(s))) return { outcome: "no_answer", tier: null };
-  if (status && status !== "connected") return { outcome: "failed", tier: null };
-
-  const vars = attempt.agent_variables ?? {};
-  const tier = str(vars.tier).toLowerCase();
+  const vars = call.final_agent_variables ?? {};
+  const said = str(vars.plan);
   const confidence = str(vars.confidence).toLowerCase();
 
-  // The agent's own read of how the call went takes precedence over the tier fields.
+  // The agent's own read of how the call went takes precedence over the plan fields.
   const agentOutcome = AGENT_OUTCOMES[str(vars.call_outcome).toLowerCase()];
-  if (agentOutcome) return { outcome: agentOutcome, tier: null };
+  if (agentOutcome) return { outcome: agentOutcome, plan: null };
 
-  if (tier === "growth" || tier === "enterprise") {
-    // Named a tier but hedged — never invent certainty.
+  const plan = options.find((option) => sameText(option, said)) ?? null;
+  if (plan) {
+    // Named a plan but hedged: never invent certainty.
     const hedged = confidence === "ambiguous" || confidence === "none";
-    return hedged ? { outcome: "ambiguous", tier: null } : { outcome: "confirmed", tier };
+    return hedged ? { outcome: "ambiguous", plan: null } : { outcome: "confirmed", plan };
   }
 
-  if (confidence === "none" && !str(vars.ae_quote)) return { outcome: "no_answer", tier: null };
-  return { outcome: "ambiguous", tier: null };
+  if (confidence === "none" && !str(vars.ae_quote)) return { outcome: "no_answer", plan: null };
+  // No plan, or one that isn't among the options offered.
+  return { outcome: "ambiguous", plan: null };
 }

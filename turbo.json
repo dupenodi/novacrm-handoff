@@ -4,22 +4,14 @@
   "globalEnv": ["COMPOSIO_*", "SARVAM_*", "OPENROUTER_*", "ROCKETLANE_*", "SLACK_*", "SUPABASE_*", "PUBLIC_APP_URL", "DEMO_AE_PHONE"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**"]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "typecheck": {
-      "dependsOn": ["^typecheck"]
-    },
-    "test": {
-      "dependsOn": ["^build"]
-    }
+    "typecheck": {},
+    "test": {}
   }
 }

@@ -1,7 +1,7 @@
 import { INTEGRATIONS, type IntegrationsStatus } from "@/lib/integrations";
 import { jsonOk } from "@/lib/server/http";
 import { isComposioConfigured, listConnections } from "@/lib/server/composio";
-import { resolveSlackMode, slackModeSetting } from "@/lib/server/slack-mode";
+import { effectiveSlackMode, slackModeSetting } from "@/lib/server/slack-mode";
 import { errorMessage } from "@/lib/server/util";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +23,7 @@ export async function GET() {
     connections: [],
     apiKeysSet: apiKeysSet(),
     slackMode: slackModeSetting(),
+    slackEffective: "mock",
   };
 
   if (configured) {
@@ -31,15 +32,7 @@ export async function GET() {
     } catch (error) {
       status.composio.error = errorMessage(error, "Couldn't reach Composio");
     }
-  }
-
-  try {
-    const slack = await resolveSlackMode();
-    status.slackEffective = slack.mode;
-    status.slackReason = slack.reason;
-  } catch (error) {
-    status.slackEffective = "mock";
-    status.slackReason = errorMessage(error, "Slack unavailable");
+    status.slackEffective = await effectiveSlackMode();
   }
 
   return jsonOk(status);

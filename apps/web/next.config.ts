@@ -7,8 +7,9 @@ import type { NextConfig } from "next";
 loadRootEnv();
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@novacrm/ui"],
   serverExternalPackages: ["@composio/core"],
+  // The floating dev badge sits on top of the sidebar's Settings link.
+  devIndicators: false,
 };
 
 export default nextConfig;

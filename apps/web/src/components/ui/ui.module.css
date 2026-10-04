@@ -1,0 +1,303 @@
+/* —— Button ——————————————————————————————————————————————————————————— */
+
+.button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 120ms var(--ease),
+    border-color 120ms var(--ease),
+    color 120ms var(--ease),
+    box-shadow 120ms var(--ease);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.sm svg {
+  width: 14px;
+  height: 14px;
+}
+
+.iconOnly {
+  width: 32px;
+  padding: 0;
+}
+
+.sm.iconOnly {
+  width: 28px;
+}
+
+.primary {
+  background: var(--text);
+  color: var(--surface);
+}
+
+.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 86%, var(--surface));
+}
+
+.secondary {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-2);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.danger {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--red);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--red-soft);
+  border-color: color-mix(in srgb, var(--red) 35%, var(--border));
+}
+
+.buttonLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loading .buttonLabel {
+  visibility: hidden;
+}
+
+.loading .spinnerOverlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* —— Badge ———————————————————————————————————————————————————————————— */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+.neutral {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+.toneAccent {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.blue {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.green {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.amber {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.red {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+/* —— Spinner —————————————————————————————————————————————————————————— */
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+/* —— Status dot ——————————————————————————————————————————————————————— */
+
+.dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.dotPulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  animation: ripple 1.6s var(--ease) infinite;
+}
+
+.dotNeutral {
+  color: var(--text-3);
+}
+
+.dotBlue {
+  color: var(--blue);
+}
+
+.dotGreen {
+  color: var(--green);
+}
+
+.dotAmber {
+  color: var(--amber);
+}
+
+.dotRed {
+  color: var(--red);
+}
+
+/* —— Toasts ——————————————————————————————————————————————————————————— */
+
+.toasts {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(380px, calc(100vw - 40px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  animation: fade-in 180ms var(--ease);
+}
+
+.toastIcon {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.toastSuccess .toastIcon {
+  color: var(--green);
+}
+
+.toastError .toastIcon {
+  color: var(--red);
+}
+
+.toastInfo .toastIcon {
+  color: var(--blue);
+}
+
+.toastBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.toastTitle {
+  font-weight: 550;
+  font-size: 13.5px;
+}
+
+.toastText {
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.toastClose {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: -2px -2px 0 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.toastClose:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.toastClose svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* —— Skeleton ————————————————————————————————————————————————————————— */
+
+.skeleton {
+  border-radius: var(--radius-xs);
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 50%, var(--surface-3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}

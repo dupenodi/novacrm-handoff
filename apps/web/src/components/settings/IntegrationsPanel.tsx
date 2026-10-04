@@ -1,109 +1,70 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Banner,
-  Button,
-  Card,
-  Chip,
-  IntegrationRow,
-  IntegrationRowSkeleton,
-  Toast,
-  type IntegrationBusyAction,
-} from "@novacrm/ui";
+import { AttentionIcon, ErrorIcon } from "@/components/ui/icons";
+import { Card } from "@/components/ui/Page";
+import { Badge, Button, Skeleton, cx } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/Toaster";
 import {
   GROUP_LABEL,
   GROUP_ORDER,
   INTEGRATIONS,
-  METHOD_LABEL,
   integrationLogoUrl,
   type IntegrationGroup,
   type IntegrationsStatus,
 } from "@/lib/integrations";
 import { errorText, requestJson } from "@/lib/request-json";
 import { friendlyError, integrationName, toRowState, type IntegrationRowState } from "./integration-rows";
+import styles from "./settings.module.css";
 
 const GROUP_HINT: Record<IntegrationGroup, string> = {
-  core: "Needed to pick up new deals and set up their onboarding projects.",
-  communication: "Optional. Until Slack is connected, customer channels are only simulated.",
-  voice: "Used to call account executives and read deal emails. These keys live on the server.",
+  core: "Needed to read deal emails and create onboarding projects.",
+  communication: "Optional. Without Slack, channels and welcome messages are simulated and marked as such.",
+  voice: "Server-side API keys for calling AEs and running the agents. Set them in .env.",
 };
 
-/** How long "Confirm disconnect" stays armed. */
+/** How long "Confirm" stays armed after the first Disconnect click. */
 const CONFIRM_MS = 4000;
-
-type Flash = { kind: "toast"; text: string } | { kind: "error"; title: string; text: string } | null;
 
 type Busy = { action: "connect" | "disconnect"; id: string } | null;
 
 export function IntegrationsPanel() {
+  const toast = useToast();
   const [status, setStatus] = useState<IntegrationsStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
-  const [flash, setFlash] = useState<Flash>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  // Only the latest load may update state.
-  const loadSeq = useRef(0);
   const confirmTimer = useRef<number | undefined>(undefined);
 
-  const showToast = (text: string) => setFlash({ kind: "toast", text });
-  const showError = useCallback(
-    (title: string, error: unknown) => setFlash({ kind: "error", title, text: friendlyError(errorText(error, "")) }),
-    [],
-  );
-  const clearFlash = () => setFlash(null);
+  const load = useCallback(async () => {
+    try {
+      const next = await requestJson<IntegrationsStatus>("/api/integrations", { cache: "no-store" });
+      setStatus(next);
+      setLoadError(next.composio.error ? friendlyError(next.composio.error) : null);
+    } catch (error) {
+      setLoadError(friendlyError(errorText(error, "")));
+    }
+  }, []);
 
-  const load = useCallback(
-    async ({ quiet = false, announceError = true } = {}): Promise<boolean> => {
-      const seq = ++loadSeq.current;
-      const isLatest = () => seq === loadSeq.current;
-      (quiet ? setRefreshing : setLoading)(true);
-      try {
-        const next = await requestJson<IntegrationsStatus>("/api/integrations");
-        if (!isLatest()) return false;
-        setStatus(next);
-        if (!next.composio.error) return true;
-        if (announceError) showError("Couldn't load integrations", new Error(next.composio.error));
-        return false;
-      } catch (error) {
-        if (isLatest() && announceError) showError("Couldn't load integrations", error);
-        return false;
-      } finally {
-        if (isLatest()) {
-          setLoading(false);
-          setRefreshing(false);
-        }
-      }
-    },
-    [showError],
-  );
-
-  // First load, plus the outcome Composio's connect flow sent back in the URL.
+  // First load, plus the result Composio's connect flow sent back in the URL.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
     const error = params.get("error");
-    if (connected) showToast(`${integrationName(connected)} is connected.`);
-    if (error) showError("Connection didn't finish", new Error(error));
-    if (connected || error) window.history.replaceState({}, "", "/settings#integrations");
-    void load({ announceError: !connected && !error });
-  }, [load, showError]);
+    if (connected) toast({ kind: "success", title: `${integrationName(connected)} is connected` });
+    if (error) toast({ kind: "error", title: "The connection didn't finish", text: friendlyError(error) });
+    if (connected || error) window.history.replaceState({}, "", "/settings");
+    void load();
+  }, [load, toast]);
 
   useEffect(() => () => window.clearTimeout(confirmTimer.current), []);
 
   const configured = Boolean(status?.composio.configured);
-  const showSkeleton = loading && status === null;
   const rows = INTEGRATIONS.map((def) => toRowState(def, status));
 
   async function connect(row: IntegrationRowState) {
     if (busy) return;
-    if (!configured) {
-      showError("Composio isn't set up", new Error("Add COMPOSIO_API_KEY to .env, then try again."));
-      return;
-    }
     setBusy({ action: "connect", id: row.def.id });
-    clearFlash();
     try {
       const { redirectUrl } = await requestJson<{ redirectUrl: string }>("/api/integrations/connect", {
         method: "POST",
@@ -112,7 +73,7 @@ export function IntegrationsPanel() {
       });
       window.location.href = redirectUrl;
     } catch (error) {
-      showError(`Couldn't connect ${row.def.name}`, error);
+      toast({ kind: "error", title: `Couldn't connect ${row.def.name}`, text: friendlyError(errorText(error, "")) });
       setBusy(null);
     }
   }
@@ -121,21 +82,18 @@ export function IntegrationsPanel() {
     if (busy || !row.connection) return;
     setBusy({ action: "disconnect", id: row.def.id });
     setConfirmId(null);
-    clearFlash();
     try {
-      await requestJson(`/api/integrations/accounts/${encodeURIComponent(row.connection.accountId)}`, {
-        method: "DELETE",
-      });
-      showToast(`${row.def.name} is disconnected.`);
-      await load({ quiet: true, announceError: false });
+      await requestJson(`/api/integrations/accounts/${encodeURIComponent(row.connection.accountId)}`, { method: "DELETE" });
+      toast({ kind: "success", title: `${row.def.name} is disconnected` });
+      await load();
     } catch (error) {
-      showError(`Couldn't disconnect ${row.def.name}`, error);
+      toast({ kind: "error", title: `Couldn't disconnect ${row.def.name}`, text: friendlyError(errorText(error, "")) });
     } finally {
       setBusy(null);
     }
   }
 
-  /** First click arms "Confirm disconnect"; a second click within CONFIRM_MS disconnects. */
+  /** The first click arms "Confirm"; a second click within CONFIRM_MS disconnects. */
   function disconnectWithConfirm(row: IntegrationRowState) {
     if (confirmId === row.def.id) {
       void disconnect(row);
@@ -146,134 +104,133 @@ export function IntegrationsPanel() {
     confirmTimer.current = window.setTimeout(() => setConfirmId(null), CONFIRM_MS);
   }
 
-  function busyActionFor(row: IntegrationRowState): IntegrationBusyAction | null {
-    if (busy?.id !== row.def.id) return null;
-    if (busy.action === "disconnect") return "disconnect";
-    return row.connection ? "reconnect" : "connect";
-  }
-
-  async function refresh() {
-    if (await load({ quiet: true })) showToast("Refreshed.");
-  }
-
   return (
-    <Card
-      title="Integrations"
-      actions={
-        showSkeleton ? null : (
-          <Button
-            variant="secondary"
-            loading={refreshing}
-            disabled={busy !== null || refreshing}
-            onClick={() => void refresh()}
-          >
-            Refresh
+    <div className={styles.groups}>
+      {loadError ? (
+        <div className={cx(styles.banner, styles.bannerError)} role="alert">
+          <ErrorIcon aria-hidden />
+          <div>
+            <p className={styles.bannerTitle}>Couldn&apos;t load integrations</p>
+            <p className={styles.bannerText}>{loadError}</p>
+          </div>
+          <Button size="sm" onClick={() => void load()}>
+            Try again
           </Button>
-        )
-      }
-    >
-      <div className="settings-integrations-main">
-        {flash?.kind === "error" ? (
-          <Banner tone="danger" title={flash.title} onDismiss={clearFlash}>
-            {flash.text}
-          </Banner>
-        ) : null}
+        </div>
+      ) : null}
 
-        {status && !configured ? (
-          <Banner tone="warning" title="Composio isn't set up yet">
-            Gmail, Rocketlane and Slack connect through Composio. Add COMPOSIO_API_KEY to .env to connect them.
-          </Banner>
-        ) : null}
+      {status && !configured ? (
+        <div className={styles.banner} role="status">
+          <AttentionIcon aria-hidden />
+          <div>
+            <p className={styles.bannerTitle}>Composio isn&apos;t set up</p>
+            <p className={styles.bannerText}>Gmail, Rocketlane and Slack connect through Composio. Add COMPOSIO_API_KEY to .env.</p>
+          </div>
+        </div>
+      ) : null}
 
-        {showSkeleton ? (
-          <ul className="t-integration-list" aria-busy="true">
-            <IntegrationRowSkeleton />
-            <IntegrationRowSkeleton />
-            <IntegrationRowSkeleton />
-          </ul>
-        ) : (
-          GROUP_ORDER.map((group) => (
-            <div key={group} className="t-integration-group">
-              <h4 className="t-integration-group__label">{GROUP_LABEL[group]}</h4>
-              <p className="settings-group-hint">{GROUP_HINT[group]}</p>
-              <ul className="t-integration-list">
-                {rows
-                  .filter((row) => row.def.group === group)
-                  .map((row) => (
-                    <SettingsIntegrationRow
+      {GROUP_ORDER.map((group) => (
+        <section key={group} className={styles.group}>
+          <div className={styles.groupHead}>
+            <h3 className={styles.groupTitle}>{GROUP_LABEL[group]}</h3>
+            <p className={styles.groupHint}>{GROUP_HINT[group]}</p>
+          </div>
+          <Card flush>
+            <ul className={styles.rows}>
+              {rows
+                .filter((row) => row.def.group === group)
+                .map((row) =>
+                  status === null && !loadError ? (
+                    <RowSkeleton key={row.def.id} />
+                  ) : (
+                    <IntegrationRow
                       key={row.def.id}
                       row={row}
-                      busyAction={busyActionFor(row)}
+                      busy={busy?.id === row.def.id ? busy.action : null}
                       disabled={busy !== null || (row.def.method === "composio" && !configured)}
                       confirming={confirmId === row.def.id}
                       onConnect={() => void connect(row)}
                       onDisconnect={() => disconnectWithConfirm(row)}
                     />
-                  ))}
-              </ul>
-            </div>
-          ))
-        )}
-
-        {flash?.kind === "toast" ? (
-          <div className="t-toast-host">
-            <Toast content={flash.text} duration={4200} onDismiss={clearFlash} />
-          </div>
-        ) : null}
-      </div>
-    </Card>
+                  ),
+                )}
+            </ul>
+          </Card>
+        </section>
+      ))}
+    </div>
   );
 }
 
-function SettingsIntegrationRow({
+function IntegrationRow({
   row,
-  busyAction,
+  busy,
   disabled,
   confirming,
   onConnect,
   onDisconnect,
 }: {
   row: IntegrationRowState;
-  busyAction: IntegrationBusyAction | null;
+  busy: "connect" | "disconnect" | null;
   disabled: boolean;
   confirming: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
 }) {
-  // API-key integrations are configured in .env, so they have no actions here.
   const viaComposio = row.def.method === "composio";
-  const canManage = viaComposio && row.connected;
   return (
-    <IntegrationRow
-      name={row.def.name}
-      logoUrl={integrationLogoUrl(row.def.toolkit)}
-      connected={row.connected}
-      busyAction={busyAction}
-      disabled={disabled}
-      attention={row.attention}
-      onConnect={viaComposio ? onConnect : undefined}
-      onReconnect={canManage ? onConnect : undefined}
-      onDisconnect={canManage ? onDisconnect : undefined}
-      disconnectLabel={confirming ? "Confirm disconnect" : "Disconnect"}
-      connectLabel={viaComposio ? "Connect" : "Set in .env"}
-      meta={
-        <>
+    <li className={styles.row}>
+      <span className={styles.logo}>
+        <img src={integrationLogoUrl(row.def.toolkit)} alt="" width={20} height={20} />
+      </span>
+      <div className={styles.rowMain}>
+        <div className={styles.rowTitle}>
+          <span className={styles.rowName}>{row.def.name}</span>
           {row.connected ? (
-            <Chip tone="ok" size="sm">
-              Connected
-            </Chip>
-          ) : null}
-          <Chip tone={row.connected ? "accent" : "muted"} size="sm">
-            {METHOD_LABEL[row.def.method]}
-          </Chip>
-          {row.identity ? (
-            <Chip tone="guess" size="sm">
-              {row.identity}
-            </Chip>
-          ) : null}
-        </>
-      }
-      facts={row.def.scope}
-    />
+            <Badge tone="green">{viaComposio ? "Connected" : "Configured"}</Badge>
+          ) : row.connection ? (
+            <Badge tone="amber">Needs attention</Badge>
+          ) : (
+            <Badge>{viaComposio ? "Not connected" : "Not set"}</Badge>
+          )}
+        </div>
+        <p className={styles.rowScope}>{row.def.scope}</p>
+        {row.identity ? <p className={styles.rowIdentity}>{row.identity}</p> : null}
+        {row.attention ? <p className={styles.rowAttention}>{row.attention}</p> : null}
+      </div>
+      <div className={styles.rowActions}>
+        {viaComposio ? (
+          row.connected ? (
+            <Button
+              variant={confirming ? "danger" : "ghost"}
+              size="sm"
+              loading={busy === "disconnect"}
+              disabled={disabled && busy !== "disconnect"}
+              onClick={onDisconnect}
+            >
+              {confirming ? "Confirm disconnect" : "Disconnect"}
+            </Button>
+          ) : (
+            <Button variant="primary" size="sm" loading={busy === "connect"} disabled={disabled && busy !== "connect"} onClick={onConnect}>
+              {row.connection ? "Reconnect" : "Connect"}
+            </Button>
+          )
+        ) : (
+          <code className={styles.envName}>{row.def.envVar}</code>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function RowSkeleton() {
+  return (
+    <li className={styles.row}>
+      <Skeleton width={36} height={36} />
+      <div className={styles.rowMain}>
+        <Skeleton width={120} height={14} />
+        <Skeleton width="70%" height={12} style={{ marginTop: 8 }} />
+      </div>
+    </li>
   );
 }

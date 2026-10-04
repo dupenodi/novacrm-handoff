@@ -3,8 +3,5 @@ node_modules
 .next
 **/.next
 .turbo
-.data
-**/*.sqlite
 .git
-apps/web/.data
 apps/web/.next

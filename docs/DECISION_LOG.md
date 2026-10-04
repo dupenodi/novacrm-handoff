@@ -1,25 +1,24 @@
 # NovaCRM FDE — Decision log
 
-Living interview brief. Update after every slice.
+Living interview brief. Holds the decisions that still apply; replaced ones are removed, not kept.
 
 ## Context
 
-NovaCRM CS receives a closed-won handoff from an AE. Agents turn that into a Rocketlane onboarding project and a shared Slack channel. Plan tier (Growth vs Enterprise) is **not** in the email — it is confirmed by phone with the AE.
+NovaCRM CS receives a closed-won handoff from an AE. Agents turn that into a Rocketlane onboarding project and a shared Slack channel. The plan (which Rocketlane template) is **not** in the email — it is confirmed by phone with the AE.
 
 ## System map (real vs mock)
 
 | Piece | Status |
 |-------|--------|
 | Rocketlane templates + overdue automations | Real (done) |
-| Gmail via Composio | Connected; tools live (`gmail.*`) |
-| Salesforce | **Real** (ACTIVE `ca_PDBEjtKkXoME`); tools live (`salesforce.*`) |
-| Rocketlane create/list | Tools live |
-| Slack | **Real** (ACTIVE); mock auto-fallback if API fails (`SLACK_MODE=real`) |
-| `llm.extract_deal` | OpenRouter structured extract (no regex) |
-| Sarvam outbound tier call | Building block + `POST /api/runs/[id]/confirm-tier` |
-| Runs / audit HTTP API | Live (`docs/API.md`); SQLite `.data/novacrm.sqlite` |
-| Agent runtime | Vercel AI SDK `ToolLoopAgent` + OpenRouter (`docs/AGENTS.md`) |
-| Operator UI runs | Home board + `/runs/[id]` (Signal ThreadRow / ToolCall / FailureCard) |
+| Gmail via Composio | Real: watcher, thread reads, customer email |
+| Rocketlane via Composio | Real: templates, companies, projects |
+| Slack via Composio | Real; simulated (and labelled) when not connected |
+| Sarvam outbound call | Real; `call_ae_to_confirm_plan` tool |
+| Salesforce | Not used by the agents; the opportunity link is read from the email for reference only |
+| Agent runtime | Own small runtime on Vercel AI SDK `generateText` + tools (`docs/AGENTS.md`) |
+| Storage | Supabase `novacrm_emails/deals/runs/run_steps/calls/kv` |
+| UI | Overview, deal thread, settings |
 
 ## Rocketlane (done)
 
@@ -30,113 +29,91 @@ NovaCRM CS receives a closed-won handoff from an AE. Agents turn that into a Roc
 
 ## Decisions
 
-### 2026-10-02 — Slack real confirmed; OpenRouter deal extract
+### 2026-10-04 — Plans are Rocketlane templates; missing details on the call
 
-- **Choice:** Keep `SLACK_MODE=real` with mock backup; smoke-tested `SLACK_CREATE_CHANNEL` + `SLACK_CHAT_POST_MESSAGE` against ACTIVE account
-- **Choice:** Replace heuristic `llm.extract_deal` with `generateText` + `Output.object` (Zod) via OpenRouter — no invented fields
-- **Why:** Connection proven end-to-end; intake classification must be agentic for the interview story
+- **Choice:** No plan names in code. Intake lists Rocketlane's templates and the call offers them by name (Sarvam input `plan_options`); the AE's answer must match an offered option exactly. The project uses that template. A third template (Mid Market, same length as Enterprise) works with no code change
+- **Choice:** Dedicated vs pooled CSM is read from the template: tasks assigned to a named person means a dedicated CSM (that person); teams only means pooled. In Rocketlane, Enterprise's "Sales & Presales Hand-off" task is assigned to Rachel (role: Customer success), so Enterprise reads as dedicated with Rachel as CSM; Growth and Mid Market assign teams only (pooled)
+- **Choice:** Missing details are collected on the call (Sarvam input `missing_details`, outputs `company_name`, `contact_name`, `contact_email`; emails spelled and read back) instead of emailing the AE. Removes the email loop when the AE and CS inbox are one Gmail account
+- **Needs:** the Sarvam agent matching `docs/SARVAM_AGENT.md`, and `SARVAM_APP_VERSION` bumped to its published version
 
-### 2026-10-02 — Salesforce connected + demo seed
+### 2026-10-04 — Deals, background runs, gated tools
 
-- **Choice:** ACTIVE `ca_PDBEjtKkXoME`; seeded Acme Logistics Account + Closed Won Opportunity `006f600000BQX24AAH` + Contact Priya Shah
-- **Why:** Fresh SF org was empty; enrich path needs at least one opp for demos
-- **Verify:** `SALESFORCE_GET_OPPORTUNITY` returns Acme / $120k / Closed Won
+- **Choice:** One `deal` per handoff email, stored in Supabase through table-agnostic helpers (`db.ts`) so it runs on Vercel with no local disk. Agents run in the background (`after()`) and the page polls, so refreshing or closing the tab never restarts or kills a run
+- **Choice:** Tools declare `available(deal, steps)`; unavailable tools are hidden from the model each step. Order and retry limits are enforced by code, not only the prompt
+- **Choice:** Every run ends with `finish`, and `verify(deal)` can overrule a "done". Every tool call logs a human title and a `why`
+- **Why:** The first version showed raw tool names and JSON, runs could be lost or duplicated, and outcomes weren't explicit
 
-### 2026-10-02 — Composio tools wired (no stubs)
+### 2026-10-04 — Hosted on Vercel; one request per agent
 
-- **Choice:** `executeComposioTool(toolkit, slug, args)` + real Gmail / Salesforce / Rocketlane / Slack tool executes; Slack respects `SLACK_MODE=mock`
-- **SF search:** `SALESFORCE_EXECUTE_SOQL_QUERY` (Account LIKE) — no dedicated search-account slug
-- **Rocketlane create:** maps tier → template ids from `rocketlane-playbooks.json`
+- **Choice:** Production on Vercel with the Composio Gmail trigger on. Each agent runs in its own function invocation (`/api/deals/:id/advance` hand-off) because background work (`after()`) shares the request's 300 s limit
+- **Trade-off:** Intake with two calls can approach 300 s (each call up to ~3 min plus Sarvam's extraction). If it's cut off, the stale-run check marks the deal for retry after 12 minutes, and a confirmed plan is kept so Retry skips the call
 
-### 2026-10-02 — Vercel AI SDK ToolLoopAgent
+### 2026-10-04 — Exact customer matching, retries in code
 
-- **Choice:** Agent loop via `ai` package `ToolLoopAgent` + OpenRouter; keep our tool registry and SQLite persistence
-- **Why:** Real multi-step tool calling without inventing a framework; interview-familiar stack
-- **Rejected:** Homegrown only invokeTool loop; LangGraph (heavier for this take-home)
-- **Entry:** `runAgent()` → `POST /api/runs/[id]/agents/[agent]`
+- **Choice:** No substring or fuzzy matching. Customers, deals and Rocketlane companies match on an exact normalized key (`customerKey`) or the exact contact email. A customer with an open project stops for a person instead of guessing whether to reuse it
+- **Choice:** One deal per customer (unique `customer_key`); a second handoff joins it as `duplicate`
+- **Choice:** Call redials and the Rocketlane create retry live in code; the prompts don't describe retries. Comms chooses the channel name and email wording from tool results, and emails the customer (cc AE) because outside customers can't be added to our Slack without Slack Connect
+- **Choice:** `COMPOSIO_USER_ID` from `.env`; inbox auto-check every 2 minutes
 
-### 2026-10-02 — Opportunity URL optional; Salesforce used for enrich when connected
+### 2026-10-04 — Rocketlane companies: Composio tool broken, proxy workaround (flag to interviewer)
 
-- **Choice:** Missing opp link does **not** fail the run. When Salesforce is connected and an opp id/name exists, Intake enriches via Composio; otherwise continue with email + voice gap-fill
-- **Why:** Agentic intake; SF is enrichment, not a hard dependency
-- **Rejected:** Blocking create on missing SF link; requiring live SF for every demo
-- **Trade-off:** Mock opportunities in Salesforce for demos when you want enrich path
+- **Problem:** New customers need a Rocketlane company before a project. Composio's `ROCKETLANE_CREATE_COMPANY` fails on every version tried (current `20260922_00`, `20260910_00`, `20260615_00`, `20251208_00`) with 500 "Server Error: Cannot perform action"
+- **Root cause (Composio side):** the tool has no `accountOwner` field, which Rocketlane requires (`/1.0/companies` without it returns 400 "accountOwner is required when creating a company"), and it targets `/api/v2/companies`, which is 404 on this workspace. Extra arguments are dropped by its schema
+- **Also tried:** `ROCKETLANE_CREATE_PROJECT` with `customer.companyName` + `autoCreateCompany: true`, rejected with "No customer company found"
+- **Not a permissions issue:** the same connected account creates companies through `/1.0/companies` when `accountOwner` is sent
+- **Choice (for now):** `createCompany` in `rocketlane.ts` posts to `/1.0/companies` through Composio's proxy (`proxyComposio`, same connected account and auth). Everything else stays on Composio tools
+- **Alternative considered:** treat "company exists in Rocketlane" as a guardrail and stop for a person. Cleaner (tools only) but every new customer becomes a manual step
+- **Next:** report to Composio; switch back to the tool once it sends an owner. Worth checking whether Rocketlane has a workspace default account owner
 
-### 2026-10-02 — Modular agents + SQLite + reusable voice
+### 2026-10-04 — Sarvam webhook delivers the call result
 
-- **Choice:** Two agents (`intake`, `communication`) with shared SQLite state; tools registered once; `voice.call_ae` is agent-agnostic but allowlisted to intake; Salesforce via Composio for enrich only
-- **Why:** Interview-clear separation; Sarvam usable by any future agent without rewriting telephony; local DB for sessions/tool traces
-- **AE phone:** `DEMO_AE_PHONE` / persona directory always rings your number in demos
-- **Spec:** [`docs/AGENTS.md`](AGENTS.md)
+- **Choice:** Each outbound call carries `webhook_config` pointing at `/api/webhooks/sarvam?secret=…`. The route saves the payload (status, variables, transcript) to `novacrm_calls`; the call step waits for that row
+- **Why:** The create call returns only an `attempt_id`. The webhook delivers status, extracted variables and transcript in one push. Sarvam doesn't sign webhooks, hence the secret in the URL
+- **Rejected:** Polling Sarvam's analytics API (slower, and a transcript fetch on top)
+- **Trade-off:** Voice calls need a public `PUBLIC_APP_URL` (ngrok locally). There's no earlier "call ended" signal, so the timer runs until the webhook lands
 
-### 2026-10-02 — Run-centric API (no `/api/dev`)
-
-- **Choice:** `POST /api/runs` + `POST /api/runs/[id]/confirm-tier`; delete `/api/dev/sarvam/tier-call` and leftover Vapi module
-- **Why:** Two NovaCRM agents (intake, communication); Sarvam is a tool on intake. Smoke tests should create real runs/audit
-- **Rejected:** Provider-scoped `/api/dev/*` smoke routes
-- **Contract:** [`docs/API.md`](API.md)
-
-### 2026-10-02 — Sarvam Voice Agents replace Vapi
+### 2026-10-02 — Sarvam Voice Agents for the AE call
 
 - **Choice:** `POST https://apps.sarvam.ai/api/outbounds/v1/orgs/{org}/workspaces/{ws}/outbounds` with `X-API-Key`, dialing from rented number +91 79658 50505
-- **Why:** Vapi needs an imported carrier number; the Twilio trial can't buy one. Sarvam rents Indian numbers directly (₹59/mo launch price) and handles Indian languages
+- **Why:** Vapi needs an imported carrier number and the Twilio trial can't buy one. Sarvam rents Indian numbers directly (₹59/mo launch price) and handles Indian languages
 - **Rejected:** Vapi + Twilio (upgrade and compliance profile needed), Vapi free numbers (can't dial out)
 - **Trade-off:** We depend on the number staying rented. Sarvam releases it at renewal if credits run short
 
 ### 2026-10-02 — Agent prompt lives in the Sarvam dashboard
 
-- **Choice:** Agent built in Sarvam with input vars `ae_name` and `customer_name`, and output vars `tier`, `confidence` and `ae_quote`. Spec is in `docs/SARVAM_AGENT.md`
+- **Choice:** The agent is built in Sarvam; the app passes input variables and reads output variables. Spec is in `docs/SARVAM_AGENT.md`
 - **Why:** Sarvam's outbound API takes an `app_id`/`app_version`, not an inline assistant
-- **Rejected:** Inline per-call assistant (the old Vapi approach; Sarvam's API has no equivalent)
-- **Trade-off:** Prompt can drift from the repo. Pin `SARVAM_APP_VERSION` and keep the spec doc in sync
+- **Trade-off:** The prompt can drift from the repo. Pin `SARVAM_APP_VERSION` and keep the spec doc in sync
 
-### 2026-10-02 — Poll analytics attempts (not webhook yet)
+### 2026-10-02 — The plan only comes from explicit extracted variables
 
-- **Choice:** `waitForAttempt` polls `GET /analytics/v1/{org}/{ws}/{app}/attempts` filtered by `attempt_id` until it's terminal and the output vars are extracted (~3 min timeout)
-- **Why:** Works locally without a public URL
-- **Rejected:** `webhook_config` only. Sarvam's instant-outbound webhook pushes status, final vars and transcript, so switch to it once intake has a public URL
-- **Trade-off:** Long-lived request on `POST /api/dev/sarvam/tier-call`
-
-### 2026-10-02 — Tier only from explicit extracted variables
-
-- **Choice:** Output vars `{ tier, confidence, ae_quote }`. Confirm only on Growth/Enterprise with explicit confidence. no_answer/busy → `no_answer`, other non-connected → `failed`, vague → `ambiguous`
-- **Why:** Guardrail: never invent a tier (assignment Part 3)
-- **Rejected:** Regex on transcript as the primary signal
+- **Choice:** The plan counts only when the extracted `plan` is one of the offered options and `confidence` isn't hedged. `no_answer`/`busy` map to their own outcomes, other non-connected calls to `failed`, vague answers to `ambiguous`
+- **Why:** Guardrail: never invent a plan (assignment Part 3)
+- **Rejected:** Regex on the transcript as the primary signal
 
 ### 2026-10-02 — Unhappy paths: retry only reachability, escalate what the AE said
 
-- **Choice:** Agent v3 adds `call_outcome`, `callback_time` and `notes`. `nextStepFor` retries only no-answer, busy and transient failures (2 min, then 5 min, 3 attempts max). Wrong person, deal not closed, unsure, declined, callback requests and DND/invalid-number failures go to a human
+- **Choice:** The agent returns `call_outcome`, `callback_time` and `notes`. Code redials only when nobody could be heard (no answer, cut off, busy, failed). Wrong person, deal not closed, unsure, declined and callback requests go to a human
 - **Why:** Calling again won't change what the AE already said, and repeated calls annoy AEs. Callback times are free text ("after lunch"), so a person picks the slot instead of us parsing it
 - **Rejected:** Redial on every non-confirmed outcome; parsing callback times
 - **Trade-off:** More escalations land on CS. Sarvam errors and timeouts come back as a `failed` result instead of throwing
 
-### 2026-10-02 — Slow, one-question-per-turn agent
+### 2026-10-02 — Slow, one-question-per-turn call
 
-- **Choice:** Greeting is only an identity check. Then Nova asks if it's a good time, then asks the plan question and reads the answer back. Speed 0.9x, eagerness Relaxed, 3 min cap
-- **Why:** The v2 greeting asked the plan question in the first breath, which felt abrupt. The identity check also stops us discussing a customer with a wrong number
+- **Choice:** The greeting is only an identity check. Then Nova asks if it's a good time, then asks the plan question and reads the answer back. Speed 0.9x, eagerness Relaxed
+- **Why:** Asking the plan question in the first breath felt abrupt. The identity check also stops us discussing a customer with a wrong number
 
-### 2026-10-02 — No subject regex for Gmail (upcoming)
+### 2026-10-02 — Slack simulated when not connected
 
-- **Choice:** Intake agent classifies natural emails (planned)
-- **Why:** Agentic demo, not brittle keyword gates
-- **Rejected:** `/closed[- ]?won/i` subject filter
+- **Choice:** `SLACK_MODE=real` posts through Composio; if Slack isn't connected or a call fails, the channel and welcome are simulated and labelled "Simulated". `SLACK_MODE=mock` always simulates. Smoke-tested `SLACK_CREATE_CHANNEL` + `SLACK_CHAT_POST_MESSAGE` against an ACTIVE account
+- **Why:** Slack is optional for a demo; a missing connection shouldn't block onboarding
 
-### 2026-10-02 — Continue + scan + operator UI
+### 2026-10-02 — Structured extraction for deal emails
 
-- **Choice:** Deterministic `continue` (Rocketlane then Slack) — no extra LLM loop
-- **Choice:** `POST /api/intake/scan` classifies with OpenRouter; missing fields reply via Gmail
-- **Choice:** Home is the run board; `/runs/[id]` shows steps + tool invocations using Signal agent/domain components
-- **Why:** Interview needs a visible trail, not just curl
+- **Choice:** Classifying and reading emails uses `generateText` + `Output.object` (Zod) via OpenRouter, with no subject-line regex and no invented fields
+- **Why:** Intake classification must be agentic, and a model that copies what's written beats keyword gates
 
 ## Open questions / assumptions
 
-- AE phone comes from deal email or CRM later; for the Sarvam smoke test use the `aePhone` body or `SARVAM_TEST_AE_NUMBER`
-- Analytics `connectivity_status` is `connected` on answered calls (verified 2026-10-02); other values assumed to match the webhook (`no_answer`/`busy`/`failed`)
-
-## Demo notes (Sarvam slice)
-
-1. Fill `SARVAM_*` in `.env` (see README)
-2. `pnpm dev` → `POST /api/runs` then `POST /api/runs/{id}/confirm-tier`
-3. Answer clearly “Enterprise” or “Growth” → `outcome: confirmed`, stage `creating_project`
-4. Ignore / vague → `nextStep` retry or escalate via `nextStepFor`
-
+- **Salesforce opportunity link is reference-only.** The brief mentions it only in Priya's description of today's process; Part 2 requires parsing the customer name, contact email and AE name, and no Salesforce integration. Intake extracts the link as an optional field (a missing link never blocks a deal), and the deal page links to it so the CS team can open the record. It is never a source for the plan: the brief makes the AE's voice confirmation the only authority. Open question for Karthik: should the opportunity be the source of truth for any field (contact email, AE phone), and should a missing link fail validation? Production options: verify the opportunity exists and is Closed Won before onboarding starts, and write the Rocketlane project and Slack channel back to it.
+- The AE phone comes from the deal email. For demos, `DEMO_AE_PHONE` makes every call ring one handset instead.

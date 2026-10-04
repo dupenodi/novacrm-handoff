@@ -1,6 +1,5 @@
-import { Board } from "@/components/desk/Board";
-import "@/components/desk/desk.css";
+import { Overview } from "@/components/home/Overview";
 
 export default function HomePage() {
-  return <Board />;
+  return <Overview />;
 }

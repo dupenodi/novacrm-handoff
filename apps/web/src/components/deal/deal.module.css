@@ -1,0 +1,1232 @@
+/* —— Layout ——————————————————————————————————————————————————————————— */
+
+.screen {
+  min-height: 100%;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 72px;
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+}
+
+.headerMain {
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.statusLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.staleNote {
+  color: var(--text-3);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 312px;
+  gap: 40px;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 28px 32px 80px;
+}
+
+.content {
+  min-width: 0;
+  max-width: var(--content-width);
+}
+
+.rail {
+  position: sticky;
+  top: 100px;
+  align-self: start;
+  min-width: 0;
+}
+
+/* —— Progress ————————————————————————————————————————————————————————— */
+
+.progress {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 0 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  list-style: none;
+  overflow: hidden;
+}
+
+.milestone {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px 14px 14px 16px;
+}
+
+.milestone + .milestone {
+  border-left: 1px solid var(--border);
+}
+
+.milestoneIcon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background: var(--surface-2);
+  color: var(--text-3);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.milestoneIcon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.milestone_done .milestoneIcon {
+  background: var(--green);
+  color: #fff;
+  box-shadow: none;
+}
+
+.milestone_active .milestoneIcon {
+  background: var(--blue-soft);
+  color: var(--blue);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 30%, transparent);
+}
+
+.milestone_blocked .milestoneIcon {
+  background: var(--amber-soft);
+  color: var(--amber);
+  box-shadow: inset 0 0 0 1px var(--amber-border);
+}
+
+.milestone_blocked {
+  background: color-mix(in srgb, var(--amber-soft) 55%, var(--surface));
+}
+
+.milestoneText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.milestoneLabel {
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.milestone_pending .milestoneLabel {
+  color: var(--text-2);
+}
+
+.milestoneDetail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+/* —— Thread ——————————————————————————————————————————————————————————— */
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.email {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  animation: fade-in 200ms var(--ease);
+}
+
+.emailHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.emailFrom {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.emailName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+}
+
+.emailAddress {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.emailLabel {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.emailTime {
+  flex-shrink: 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.emailContent {
+  padding: 16px 18px 18px;
+}
+
+.emailSubject {
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.emailBody {
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.emailBodyClamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 14;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.textButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.textButton:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* —— Agent turn ——————————————————————————————————————————————————————— */
+
+.turn {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 14px;
+  animation: fade-in 200ms var(--ease);
+}
+
+.agentAvatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  color: #fff;
+}
+
+.agentAvatar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.agent_intake {
+  background: var(--accent);
+}
+
+.agent_comms {
+  background: var(--blue);
+}
+
+.turnBody {
+  min-width: 0;
+}
+
+.turnHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-height: 32px;
+  padding-top: 5px;
+}
+
+.turnName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.turnMeta {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note {
+  margin: 4px 0 12px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+/* The timeline rail joining step icons. */
+.step::before {
+  content: "";
+  position: absolute;
+  top: 26px;
+  bottom: 2px;
+  left: 10.5px;
+  width: 1px;
+  background: var(--border);
+}
+
+.step:last-child::before {
+  display: none;
+}
+
+.stepIcon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--text-3);
+}
+
+.stepIcon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.step_done .stepIcon {
+  background: var(--green-soft);
+  color: var(--green);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 28%, transparent);
+}
+
+.step_running .stepIcon {
+  background: var(--blue-soft);
+  color: var(--blue);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 28%, transparent);
+}
+
+.step_warning .stepIcon {
+  background: var(--amber-soft);
+  color: var(--amber);
+  box-shadow: inset 0 0 0 1px var(--amber-border);
+}
+
+.step_failed .stepIcon {
+  background: var(--red-soft);
+  color: var(--red);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 28%, transparent);
+}
+
+.stepMain {
+  min-width: 0;
+}
+
+.stepHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 24px;
+}
+
+.stepTitle {
+  font-size: 13.5px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.step_running .stepTitle {
+  color: var(--text);
+}
+
+.stepTime {
+  flex-shrink: 0;
+  color: var(--text-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepWhy {
+  margin-top: 1px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.stepError {
+  margin-top: 8px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.thinking svg {
+  color: var(--text-3);
+}
+
+/* —— Step log ————————————————————————————————————————————————————————— */
+
+.raw {
+  margin-top: 6px;
+}
+
+.rawToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: -2px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-3);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rawToggle:hover {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+.rawChevron {
+  width: 13px;
+  height: 13px;
+  transform: rotate(-90deg);
+  transition: transform 150ms var(--ease);
+}
+
+.rawChevronOpen {
+  transform: none;
+}
+
+.rawBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.rawBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rawLabel {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rawPre {
+  max-height: 240px;
+  margin: 0;
+  overflow: auto;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* —— Outcome ———————————————————————————————————————————————————————————— */
+
+.outcome {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: var(--radius);
+}
+
+.outcomeDone {
+  border-color: color-mix(in srgb, var(--green) 22%, var(--border));
+  background: var(--green-soft);
+}
+
+.outcomeAttention {
+  border-color: var(--amber-border);
+  background: var(--amber-soft);
+}
+
+.outcomeIcon {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.outcomeDone .outcomeIcon {
+  color: var(--green);
+}
+
+.outcomeAttention .outcomeIcon {
+  color: var(--amber);
+}
+
+.outcomeBody {
+  min-width: 0;
+}
+
+.outcomeTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.outcomeText {
+  margin-top: 1px;
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.outcomeActions {
+  margin-top: 10px;
+}
+
+/* —— Result cards ——————————————————————————————————————————————————————— */
+
+.card {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.cardRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.cardMeta strong {
+  font-weight: 550;
+}
+
+.cardMetaSub {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.cardBodyText {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.inlineIcon {
+  width: 12px;
+  height: 12px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 10px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--border);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 12px;
+  background: var(--surface);
+}
+
+/* An odd last field spans both columns instead of leaving an empty cell. */
+.field:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.field dt {
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+.field dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+}
+
+.fieldValue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fieldEmpty {
+  color: var(--text-3);
+}
+
+.fieldMissing {
+  color: var(--red);
+}
+
+.missingTag {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+.kv > div {
+  display: contents;
+}
+
+.kv dt {
+  color: var(--text-3);
+}
+
+.kv dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.quote {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.quoteIcon {
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  color: var(--text-3);
+}
+
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  list-style: none;
+}
+
+.turnLine {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.turnSpeaker {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+  padding-top: 1px;
+}
+
+.turnLineNova .turnSpeaker {
+  color: var(--accent-text);
+}
+
+.turnText {
+  min-width: 0;
+}
+
+.phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phases li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 4px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.phaseCount {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.templateList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.templateList .cardTitleRow {
+  flex-wrap: wrap;
+}
+
+.earlierCalls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.earlierCalls li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.earlierNote {
+  color: var(--text-2);
+  font-size: 12.5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.phaseNumber {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.liveCall {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-color: color-mix(in srgb, var(--blue) 25%, var(--border));
+  background: var(--blue-soft);
+}
+
+.liveCallIcon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background: var(--blue);
+  color: #fff;
+}
+
+.liveCallIcon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--blue);
+  animation: ripple 1.8s var(--ease) infinite;
+  z-index: -1;
+}
+
+.liveCallIcon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.liveCallEnded .liveCallIcon {
+  background: var(--surface-2);
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.liveCallEnded .liveCallIcon::after {
+  content: none;
+}
+
+.liveCallEnded > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.liveCallSpinner {
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+
+.liveCallTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.liveCallText {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.cardTitleIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.cardTitleIcon > svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-3);
+}
+
+.cardMeta .cardTitleIcon {
+  font-weight: 400;
+}
+
+.channelTopic {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.slackMessage {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.slackAvatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 650;
+}
+
+.slackBody {
+  min-width: 0;
+}
+
+.slackHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.slackName {
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.slackApp {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 16px;
+}
+
+.slackText {
+  font-size: 13.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.slackText code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  font-size: 12px;
+}
+
+.slackText a {
+  color: var(--blue);
+}
+
+.slackLine {
+  margin: 0;
+}
+
+.slackGap {
+  height: 8px;
+}
+
+.slackList {
+  margin: 2px 0;
+  padding-left: 20px;
+}
+
+.slackList li + li {
+  margin-top: 2px;
+}
+
+/* —— Details rail ——————————————————————————————————————————————————————— */
+
+.details {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.detailGroup {
+  padding: 14px 16px;
+}
+
+.detailGroup + .detailGroup {
+  border-top: 1px solid var(--border);
+}
+
+.detailTitle {
+  margin-bottom: 8px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detailList {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+}
+
+.detail {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.detail dt {
+  color: var(--text-3);
+}
+
+.detail dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+/* Emails, channels and ids read best on one line; the full value is in the tooltip. */
+.detailTruncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail dd a {
+  color: var(--accent-text);
+}
+
+.detail dd a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.detailLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.detailLink svg {
+  width: 12px;
+  height: 12px;
+}
+
+.detailInline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.detailMissing {
+  color: var(--red);
+  font-weight: 500;
+}
+
+.detailEmpty {
+  color: var(--text-3);
+}
+
+.detailQuote {
+  color: var(--text-2);
+  font-style: italic;
+}
+
+.detailCode {
+  color: var(--text-2);
+  font-size: 11.5px;
+}
+
+/* —— Responsive ————————————————————————————————————————————————————————— */
+
+@media (max-width: 1180px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: calc(var(--content-width) + 64px);
+  }
+
+  .rail {
+    position: static;
+  }
+}
+
+@media (max-width: 900px) {
+  .header {
+    top: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
+
+  .body {
+    padding: 20px 16px 56px;
+  }
+
+  .progress {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .milestone:nth-child(3) {
+    border-left: 0;
+  }
+
+  .milestone:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
+  }
+
+  .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .emailHead {
+    flex-wrap: wrap;
+  }
+
+  .emailTime {
+    width: 100%;
+    padding-left: 44px;
+    margin-top: -8px;
+  }
+
+  .turn {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .agentAvatar {
+    width: 28px;
+    height: 28px;
+  }
+}
