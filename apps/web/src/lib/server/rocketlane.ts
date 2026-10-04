@@ -101,7 +101,7 @@ export async function findCompany(customerName: string): Promise<{ id: string; n
 /**
  * Rocketlane requires an account owner on new companies, and Composio's create-company tool doesn't
  * send one (Rocketlane answers 500). Until that's fixed this calls the REST endpoint through
- * Composio's proxy. See DECISION_LOG.md, 2026-10-04.
+ * Composio's proxy.
  */
 export async function createCompany(customerName: string): Promise<{ id: string; name: string }> {
   const created = (await proxyComposio("rocketlane", {
